@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { ImageOff } from 'lucide-react'
 import { getClipPlaybackUrl } from '../../lib/api/clips'
 import { cn } from '../../lib/utils'
 import type { Clip } from '../../types'
@@ -31,7 +32,7 @@ export function ClipStripCard({ clip, isSelected, onSelect, className }: ClipStr
       type="button"
       onClick={onSelect}
       className={cn(
-        'flex-shrink-0 w-[180px] rounded-xl border-2 overflow-hidden text-left transition-all focus-visible:outline focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-bg)]',
+        'w-[180px] shrink-0 rounded-xl border-2 overflow-hidden text-left transition-colors focus-visible:outline focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-bg)]',
         isSelected
           ? 'border-[var(--app-accent)] shadow-lg shadow-[var(--app-accent)]/20'
           : 'border-[var(--app-border)] hover:border-[var(--app-border-strong)] hover:shadow-md',
@@ -51,8 +52,9 @@ export function ClipStripCard({ clip, isSelected, onSelect, className }: ClipStr
             aria-hidden
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-[var(--app-fg-muted)] text-sm">
-            No preview
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-[var(--app-fg-muted)]">
+            <ImageOff size={24} aria-hidden />
+            <span className="text-xs font-medium">No preview</span>
           </div>
         )}
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-2 py-2">

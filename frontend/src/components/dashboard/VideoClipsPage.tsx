@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Skeleton } from '../ui/skeleton'
+import { Link } from '@tanstack/react-router'
 import { ErrorState } from '../ui/error-state'
 import { MainVideoView } from './video-clips/MainVideoView'
 import { VideoClipsPageHeader } from './video-clips/VideoClipsPageHeader'
@@ -8,6 +8,7 @@ import { ClipsEmptyState } from './video-clips/ClipsEmptyState'
 import { ClipsViewContent } from './video-clips/ClipsViewContent'
 import { ClipSuggestionsPanel } from './video-clips/ClipSuggestionsPanel'
 import { useVideoClipsPage } from './video-clips/useVideoClipsPage'
+import { ClipsViewSkeleton, VideoClipsPageSkeleton } from './video-clips/VideoClipsPageSkeletons'
 
 export function VideoClipsPage() {
   const queryClient = useQueryClient()
@@ -43,18 +44,18 @@ export function VideoClipsPage() {
   } = useVideoClipsPage()
 
   if (videoLoading || !video) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-32 w-full" />
-      </div>
-    )
+    return <VideoClipsPageSkeleton />
   }
 
   if (videoError) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-[var(--app-fg)]">Clips</h1>
+        <Link
+          to="/dashboard/videos"
+          className="text-sm text-[var(--app-accent)] hover:underline focus-visible:outline focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-bg)] rounded"
+        >
+          Back to Videos
+        </Link>
         <ErrorState
           message="Video not found."
           onRetry={() => queryClient.invalidateQueries({ queryKey: ['video', videoId] })}
@@ -64,7 +65,7 @@ export function VideoClipsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <main className="space-y-6" aria-label="Clips">
       <VideoClipsPageHeader
         videoId={videoId}
         videoFilename={video.original_filename}
@@ -80,11 +81,12 @@ export function VideoClipsPage() {
 
       {viewMode === 'clips' &&
         (clipsLoading ? (
-          <Skeleton className="h-64 w-full rounded-xl" />
+          <ClipsViewSkeleton />
         ) : sortedClips.length === 0 ? (
           <ClipsEmptyState
             onSuggestClips={() => suggestMut.mutate()}
             isSuggesting={suggestMut.isPending}
+            videoId={videoId}
           />
         ) : (
           <ClipsViewContent
@@ -116,6 +118,6 @@ export function VideoClipsPage() {
           isAcceptingAll={acceptAllMut.isPending}
         />
       )}
-    </div>
+    </main>
   )
 }

@@ -12,7 +12,7 @@ export interface ClipTranscriptPanelProps {
 export function ClipTranscriptPanel({ clip, segments, currentTime, onSeek }: ClipTranscriptPanelProps) {
   return (
     <div
-      className="rounded-xl border border-[var(--app-border)] bg-[var(--app-bg-raised)] p-4 lg:sticky lg:top-6"
+      className="min-h-[200px] rounded-xl border border-[var(--app-border)] bg-[var(--app-bg-raised)] p-4 lg:sticky lg:top-6 lg:min-h-[300px]"
       id="transcript-panel"
     >
       <h2 className="font-semibold text-[var(--app-fg)] mb-3">

@@ -9,8 +9,14 @@ export interface ViewModeTabsProps {
 
 export function ViewModeTabs({ value, onChange }: ViewModeTabsProps) {
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-sm font-medium text-[var(--app-fg-muted)]">View:</span>
+    <div
+      className="flex items-center gap-2 border-t border-[var(--app-border)] pt-6"
+      role="group"
+      aria-labelledby="view-mode-label"
+    >
+      <span id="view-mode-label" className="text-sm font-medium text-[var(--app-fg-muted)]">
+        View:
+      </span>
       <div
         role="tablist"
         aria-label="Switch between Clips and Main video"

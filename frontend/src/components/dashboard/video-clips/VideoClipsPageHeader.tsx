@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { Plus, Sparkles } from 'lucide-react'
+import { ChevronRight, Plus, Sparkles } from 'lucide-react'
 import { Button } from '../../ui/button'
 
 export interface VideoClipsPageHeaderProps {
@@ -16,21 +16,34 @@ export function VideoClipsPageHeader({
   isSuggesting,
 }: VideoClipsPageHeaderProps) {
   return (
-    <div className="flex items-center justify-between">
-      <div>
-        <Link to="/dashboard/videos" className="text-sm text-[var(--app-accent)] hover:underline">
-          Videos
-        </Link>
-        <span className="mx-2 text-[var(--app-fg-muted)]">/</span>
-        <Link
-          to="/dashboard/videos/$videoId"
-          params={{ videoId }}
-          className="text-sm text-[var(--app-accent)] hover:underline"
-        >
-          {videoFilename}
-        </Link>
+    <header className="flex flex-wrap items-start justify-between gap-4">
+      <div className="min-w-0">
+        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm">
+          <Link
+            to="/dashboard/videos"
+            className="text-[var(--app-accent)] hover:underline focus-visible:outline focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-bg)] rounded"
+          >
+            Videos
+          </Link>
+          <ChevronRight
+            size={16}
+            className="shrink-0 text-[var(--app-fg-muted)]"
+            aria-hidden
+          />
+          <Link
+            to="/dashboard/videos/$videoId"
+            params={{ videoId }}
+            className="truncate text-[var(--app-accent)] hover:underline focus-visible:outline focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-bg)] rounded"
+          >
+            {videoFilename}
+          </Link>
+        </nav>
+        <h1 className="mt-1.5 text-2xl font-bold text-[var(--app-fg)]">Clips</h1>
+        <p className="mt-0.5 text-sm text-[var(--app-fg-muted)]">
+          Review and trim clips from this video
+        </p>
       </div>
-      <div className="flex gap-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 sm:gap-2">
         <Button
           variant="outline"
           size="sm"
@@ -48,6 +61,6 @@ export function VideoClipsPageHeader({
           </Button>
         </Link>
       </div>
-    </div>
+    </header>
   )
 }
