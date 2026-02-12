@@ -2,7 +2,7 @@ import { Link, useParams, useRouterState } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Scissors, Plus, Sparkles, Check, CheckCheck } from 'lucide-react'
-import { getVideo } from '../../lib/api/videos'
+import { getVideo, getPlaybackUrl } from '../../lib/api/videos'
 import { listClips, createClip, getClipPlaybackUrl, updateClip } from '../../lib/api/clips'
 import { getTranscriptionByVideoId } from '../../lib/api/transcriptions'
 import { suggestClips, type ClipSuggestion } from '../../lib/api/analysis'
@@ -15,8 +15,69 @@ import { ClipStripCard } from '../clip/ClipStripCard'
 import { TranscriptViewer } from '../transcription/TranscriptViewer'
 import { toast } from 'sonner'
 import { cn } from '../../lib/utils'
-import type { Clip } from '../../types'
+import type { Clip, Video } from '../../types'
 import type { TranscriptSegment } from '../../types'
+
+function MainVideoView({
+  videoId,
+  video,
+  segments,
+}: {
+  videoId: string
+  video: Video
+  segments: TranscriptSegment[]
+}) {
+  const playerRef = useRef<{ seek: (time: number) => void; getCurrentTime: () => number }>(null)
+  const [currentTime, setCurrentTime] = useState(0)
+
+  const { data: playbackData, isFetching: playbackLoading } = useQuery({
+    queryKey: ['video-playback', videoId],
+    queryFn: () => getPlaybackUrl(videoId),
+    enabled: !!videoId,
+  })
+  const playbackUrl = playbackData?.url ?? null
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(320px,400px)] gap-6 items-start">
+      <div className="rounded-xl overflow-hidden border border-[var(--app-border)] bg-[var(--app-bg)]">
+        {playbackLoading && (
+          <div className="aspect-video flex items-center justify-center text-[var(--app-fg-muted)]">
+            Loading…
+          </div>
+        )}
+        {!playbackLoading && playbackUrl && (
+          <VideoPlayer
+            ref={playerRef}
+            src={playbackUrl}
+            initialTime={currentTime}
+            onTimeUpdate={setCurrentTime}
+          />
+        )}
+        {!playbackLoading && !playbackUrl && (
+          <div className="aspect-video flex items-center justify-center text-[var(--app-fg-muted)]">
+            Playback not available for this video.
+          </div>
+        )}
+      </div>
+      <div
+        className="rounded-xl border border-[var(--app-border)] bg-[var(--app-bg-raised)] p-4 lg:sticky lg:top-6"
+        id="transcript-panel"
+      >
+        <h2 className="font-semibold text-[var(--app-fg)] mb-3">Transcript: {video.original_filename}</h2>
+        {segments.length > 0 ? (
+          <TranscriptViewer
+            segments={segments}
+            currentTime={currentTime}
+            onSeek={(t) => playerRef.current?.seek(t)}
+            className="max-h-[50vh]"
+          />
+        ) : (
+          <p className="text-caption text-[var(--app-fg-muted)]">No transcript available.</p>
+        )}
+      </div>
+    </div>
+  )
+}
 
 function formatTimeForLabel(sec: number): string {
   const m = Math.floor(sec / 60)
@@ -56,7 +117,7 @@ export function VideoClipsPage() {
   const [suggestions, setSuggestions] = useState<ClipSuggestion[]>([])
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null)
   const [clipPlaybackCurrentTime, setClipPlaybackCurrentTime] = useState(0)
-  type ViewMode = 'clips' | 'suggestions'
+  type ViewMode = 'clips' | 'main-video'
   const [viewMode, setViewMode] = useState<ViewMode>('clips')
 
   useEffect(() => {
@@ -108,7 +169,6 @@ export function VideoClipsPage() {
       const list = data.suggestions ?? []
       setSuggestions(list)
       if (list.length > 0) {
-        setViewMode('suggestions')
         toast.success(`${list.length} clip suggestions ready`)
       } else {
         toast.info('No suggestions found for this video')
@@ -275,7 +335,7 @@ export function VideoClipsPage() {
         <span className="text-sm font-medium text-[var(--app-fg-muted)]">View:</span>
         <div
           role="tablist"
-          aria-label="Switch between Clips and Suggestions"
+          aria-label="Switch between Clips and Main video"
           className="inline-flex rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-0.5"
         >
           <button
@@ -295,88 +355,22 @@ export function VideoClipsPage() {
           <button
             type="button"
             role="tab"
-            aria-selected={viewMode === 'suggestions'}
-            onClick={() => setViewMode('suggestions')}
+            aria-selected={viewMode === 'main-video'}
+            onClick={() => setViewMode('main-video')}
             className={cn(
               'rounded-md px-4 py-2 text-sm font-medium transition-colors',
-              viewMode === 'suggestions'
+              viewMode === 'main-video'
                 ? 'bg-[var(--app-accent)] text-[#0a0a0b]'
                 : 'text-[var(--app-fg-muted)] hover:text-[var(--app-fg)] hover:bg-[var(--app-bg-raised)]'
             )}
           >
-            Suggestions
-            {suggestions.length > 0 && (
-              <span className="ml-1.5 rounded-full bg-white/20 px-1.5 py-0.5 text-xs">
-                {suggestions.length}
-              </span>
-            )}
+            Main video
           </button>
         </div>
       </div>
 
-      {viewMode === 'suggestions' && (
-        <div className="space-y-4">
-          {suggestions.length > 0 ? (
-            <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-bg-raised)] p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="font-semibold text-[var(--app-fg)]">AI suggestions</h2>
-                <Button
-                  size="sm"
-                  onClick={() => acceptAllMut.mutate()}
-                  disabled={acceptAllMut.isPending}
-                  className="bg-[var(--app-accent)] text-[#0a0a0b] hover:bg-[var(--app-accent-hover)]"
-                >
-                  <CheckCheck size={14} className="mr-1" />
-                  {acceptAllMut.isPending ? 'Creating…' : 'Accept all'}
-                </Button>
-              </div>
-              <ul className="flex flex-wrap gap-2">
-                {suggestions.map((suggestion, index) => (
-                  <li
-                    key={`${suggestion.start_time}-${suggestion.end_time}-${index}`}
-                    className="flex items-center gap-2 rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2"
-                  >
-                    <span className="text-caption text-[var(--app-fg-muted)]">
-                      {formatTimeForLabel(suggestion.start_time)}–{formatTimeForLabel(suggestion.end_time)}
-                    </span>
-                    {suggestion.transcript && (
-                      <span className="max-w-[200px] truncate text-sm text-[var(--app-fg-muted)]" title={suggestion.transcript}>
-                        {suggestion.transcript}
-                      </span>
-                    )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="shrink-0"
-                      onClick={() => acceptClipMut.mutate({ suggestion, index })}
-                      disabled={acceptClipMut.isPending}
-                    >
-                      <Check size={14} className="mr-1" />
-                      Accept
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-bg-raised)] p-8 text-center">
-              <Sparkles size={40} className="mx-auto text-[var(--app-fg-muted)]" />
-              <p className="mt-2 font-medium text-[var(--app-fg)]">No suggestions yet</p>
-              <p className="text-caption text-[var(--app-fg-muted)] mt-1">
-                Click &quot;AI suggest clips&quot; above to get clip suggestions from this video.
-              </p>
-              <Button
-                size="sm"
-                className="mt-4 bg-[var(--app-accent)] text-[#0a0a0b] hover:bg-[var(--app-accent-hover)]"
-                onClick={() => suggestMut.mutate()}
-                disabled={suggestMut.isPending}
-              >
-                <Sparkles size={16} className="mr-1" />
-                {suggestMut.isPending ? 'Analyzing…' : 'AI suggest clips'}
-              </Button>
-            </div>
-          )}
-        </div>
+      {viewMode === 'main-video' && (
+        <MainVideoView videoId={videoId} video={video!} segments={segments} />
       )}
 
       {viewMode === 'clips' && (clipsLoading ? (
@@ -488,6 +482,49 @@ export function VideoClipsPage() {
           </div>
         </div>
       ))}
+      {viewMode === 'clips' && !clipsLoading && suggestions.length > 0 && (
+        <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-bg-raised)] p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-[var(--app-fg)]">AI suggestions</h2>
+            <Button
+              size="sm"
+              onClick={() => acceptAllMut.mutate()}
+              disabled={acceptAllMut.isPending}
+              className="bg-[var(--app-accent)] text-[#0a0a0b] hover:bg-[var(--app-accent-hover)]"
+            >
+              <CheckCheck size={14} className="mr-1" />
+              {acceptAllMut.isPending ? 'Creating…' : 'Accept all'}
+            </Button>
+          </div>
+          <ul className="flex flex-wrap gap-2">
+            {suggestions.map((suggestion, index) => (
+              <li
+                key={`${suggestion.start_time}-${suggestion.end_time}-${index}`}
+                className="flex items-center gap-2 rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2"
+              >
+                <span className="text-caption text-[var(--app-fg-muted)]">
+                  {formatTimeForLabel(suggestion.start_time)}–{formatTimeForLabel(suggestion.end_time)}
+                </span>
+                {suggestion.transcript && (
+                  <span className="max-w-[200px] truncate text-sm text-[var(--app-fg-muted)]" title={suggestion.transcript}>
+                    {suggestion.transcript}
+                  </span>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => acceptClipMut.mutate({ suggestion, index })}
+                  disabled={acceptClipMut.isPending}
+                >
+                  <Check size={14} className="mr-1" />
+                  Accept
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   )
 }
