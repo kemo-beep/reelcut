@@ -9,15 +9,20 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as EditorRouteImport } from './routes/editor'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
+import { Route as EditorClipIdRouteImport } from './routes/editor/$clipId'
 import { Route as DemoTanstackQueryRouteImport } from './routes/demo/tanstack-query'
 import { Route as DemoTableRouteImport } from './routes/demo/table'
 import { Route as DemoStoreRouteImport } from './routes/demo/store'
 import { Route as DemoBetterAuthRouteImport } from './routes/demo/better-auth'
+import { Route as AuthVerifyEmailRouteImport } from './routes/auth/verify-email'
+import { Route as AuthResetPasswordRouteImport } from './routes/auth/reset-password'
 import { Route as AuthRegisterRouteImport } from './routes/auth/register'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
+import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
 import { Route as DashboardVideosIndexRouteImport } from './routes/dashboard/videos/index'
 import { Route as DashboardTemplatesIndexRouteImport } from './routes/dashboard/templates/index'
 import { Route as DashboardProjectsIndexRouteImport } from './routes/dashboard/projects/index'
@@ -29,7 +34,9 @@ import { Route as DemoFormAddressRouteImport } from './routes/demo/form.address'
 import { Route as DemoApiTqTodosRouteImport } from './routes/demo/api.tq-todos'
 import { Route as DemoApiNamesRouteImport } from './routes/demo/api.names'
 import { Route as DashboardVideosUploadRouteImport } from './routes/dashboard/videos/upload'
+import { Route as DashboardSettingsUsageRouteImport } from './routes/dashboard/settings/usage'
 import { Route as DashboardSettingsProfileRouteImport } from './routes/dashboard/settings/profile'
+import { Route as DashboardSettingsBillingRouteImport } from './routes/dashboard/settings/billing'
 import { Route as DashboardProjectsProjectIdRouteImport } from './routes/dashboard/projects/$projectId'
 import { Route as DashboardClipsClipIdRouteImport } from './routes/dashboard/clips/$clipId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -38,7 +45,14 @@ import { Route as DashboardVideosVideoIdIndexRouteImport } from './routes/dashbo
 import { Route as DemoStartSsrSpaModeRouteImport } from './routes/demo/start.ssr.spa-mode'
 import { Route as DemoStartSsrFullSsrRouteImport } from './routes/demo/start.ssr.full-ssr'
 import { Route as DemoStartSsrDataOnlyRouteImport } from './routes/demo/start.ssr.data-only'
+import { Route as DashboardVideosVideoIdTranscriptionRouteImport } from './routes/dashboard/videos/$videoId/transcription'
+import { Route as DashboardVideosVideoIdClipsRouteImport } from './routes/dashboard/videos/$videoId/clips'
 
+const EditorRoute = EditorRouteImport.update({
+  id: '/editor',
+  path: '/editor',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -53,6 +67,11 @@ const DashboardIndexRoute = DashboardIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => DashboardRoute,
+} as any)
+const EditorClipIdRoute = EditorClipIdRouteImport.update({
+  id: '/$clipId',
+  path: '/$clipId',
+  getParentRoute: () => EditorRoute,
 } as any)
 const DemoTanstackQueryRoute = DemoTanstackQueryRouteImport.update({
   id: '/demo/tanstack-query',
@@ -74,6 +93,16 @@ const DemoBetterAuthRoute = DemoBetterAuthRouteImport.update({
   path: '/demo/better-auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthVerifyEmailRoute = AuthVerifyEmailRouteImport.update({
+  id: '/auth/verify-email',
+  path: '/auth/verify-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
+  id: '/auth/reset-password',
+  path: '/auth/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRegisterRoute = AuthRegisterRouteImport.update({
   id: '/auth/register',
   path: '/auth/register',
@@ -82,6 +111,11 @@ const AuthRegisterRoute = AuthRegisterRouteImport.update({
 const AuthLoginRoute = AuthLoginRouteImport.update({
   id: '/auth/login',
   path: '/auth/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
+  id: '/auth/forgot-password',
+  path: '/auth/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardVideosIndexRoute = DashboardVideosIndexRouteImport.update({
@@ -139,10 +173,21 @@ const DashboardVideosUploadRoute = DashboardVideosUploadRouteImport.update({
   path: '/videos/upload',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardSettingsUsageRoute = DashboardSettingsUsageRouteImport.update({
+  id: '/settings/usage',
+  path: '/settings/usage',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardSettingsProfileRoute =
   DashboardSettingsProfileRouteImport.update({
     id: '/settings/profile',
     path: '/settings/profile',
+    getParentRoute: () => DashboardRoute,
+  } as any)
+const DashboardSettingsBillingRoute =
+  DashboardSettingsBillingRouteImport.update({
+    id: '/settings/billing',
+    path: '/settings/billing',
     getParentRoute: () => DashboardRoute,
   } as any)
 const DashboardProjectsProjectIdRoute =
@@ -187,21 +232,40 @@ const DemoStartSsrDataOnlyRoute = DemoStartSsrDataOnlyRouteImport.update({
   path: '/demo/start/ssr/data-only',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardVideosVideoIdTranscriptionRoute =
+  DashboardVideosVideoIdTranscriptionRouteImport.update({
+    id: '/videos/$videoId/transcription',
+    path: '/videos/$videoId/transcription',
+    getParentRoute: () => DashboardRoute,
+  } as any)
+const DashboardVideosVideoIdClipsRoute =
+  DashboardVideosVideoIdClipsRouteImport.update({
+    id: '/videos/$videoId/clips',
+    path: '/videos/$videoId/clips',
+    getParentRoute: () => DashboardRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/editor': typeof EditorRouteWithChildren
+  '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
+  '/auth/verify-email': typeof AuthVerifyEmailRoute
   '/demo/better-auth': typeof DemoBetterAuthRoute
   '/demo/store': typeof DemoStoreRoute
   '/demo/table': typeof DemoTableRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/editor/$clipId': typeof EditorClipIdRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/dashboard/clips/$clipId': typeof DashboardClipsClipIdRoute
   '/dashboard/projects/$projectId': typeof DashboardProjectsProjectIdRoute
+  '/dashboard/settings/billing': typeof DashboardSettingsBillingRoute
   '/dashboard/settings/profile': typeof DashboardSettingsProfileRoute
+  '/dashboard/settings/usage': typeof DashboardSettingsUsageRoute
   '/dashboard/videos/upload': typeof DashboardVideosUploadRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/api/tq-todos': typeof DemoApiTqTodosRoute
@@ -213,6 +277,8 @@ export interface FileRoutesByFullPath {
   '/dashboard/projects/': typeof DashboardProjectsIndexRoute
   '/dashboard/templates/': typeof DashboardTemplatesIndexRoute
   '/dashboard/videos/': typeof DashboardVideosIndexRoute
+  '/dashboard/videos/$videoId/clips': typeof DashboardVideosVideoIdClipsRoute
+  '/dashboard/videos/$videoId/transcription': typeof DashboardVideosVideoIdTranscriptionRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
   '/demo/start/ssr/spa-mode': typeof DemoStartSsrSpaModeRoute
@@ -221,17 +287,24 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/editor': typeof EditorRouteWithChildren
+  '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
+  '/auth/verify-email': typeof AuthVerifyEmailRoute
   '/demo/better-auth': typeof DemoBetterAuthRoute
   '/demo/store': typeof DemoStoreRoute
   '/demo/table': typeof DemoTableRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/editor/$clipId': typeof EditorClipIdRoute
   '/dashboard': typeof DashboardIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/dashboard/clips/$clipId': typeof DashboardClipsClipIdRoute
   '/dashboard/projects/$projectId': typeof DashboardProjectsProjectIdRoute
+  '/dashboard/settings/billing': typeof DashboardSettingsBillingRoute
   '/dashboard/settings/profile': typeof DashboardSettingsProfileRoute
+  '/dashboard/settings/usage': typeof DashboardSettingsUsageRoute
   '/dashboard/videos/upload': typeof DashboardVideosUploadRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/api/tq-todos': typeof DemoApiTqTodosRoute
@@ -243,6 +316,8 @@ export interface FileRoutesByTo {
   '/dashboard/projects': typeof DashboardProjectsIndexRoute
   '/dashboard/templates': typeof DashboardTemplatesIndexRoute
   '/dashboard/videos': typeof DashboardVideosIndexRoute
+  '/dashboard/videos/$videoId/clips': typeof DashboardVideosVideoIdClipsRoute
+  '/dashboard/videos/$videoId/transcription': typeof DashboardVideosVideoIdTranscriptionRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
   '/demo/start/ssr/spa-mode': typeof DemoStartSsrSpaModeRoute
@@ -253,17 +328,24 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/editor': typeof EditorRouteWithChildren
+  '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
+  '/auth/verify-email': typeof AuthVerifyEmailRoute
   '/demo/better-auth': typeof DemoBetterAuthRoute
   '/demo/store': typeof DemoStoreRoute
   '/demo/table': typeof DemoTableRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/editor/$clipId': typeof EditorClipIdRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/dashboard/clips/$clipId': typeof DashboardClipsClipIdRoute
   '/dashboard/projects/$projectId': typeof DashboardProjectsProjectIdRoute
+  '/dashboard/settings/billing': typeof DashboardSettingsBillingRoute
   '/dashboard/settings/profile': typeof DashboardSettingsProfileRoute
+  '/dashboard/settings/usage': typeof DashboardSettingsUsageRoute
   '/dashboard/videos/upload': typeof DashboardVideosUploadRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/api/tq-todos': typeof DemoApiTqTodosRoute
@@ -275,6 +357,8 @@ export interface FileRoutesById {
   '/dashboard/projects/': typeof DashboardProjectsIndexRoute
   '/dashboard/templates/': typeof DashboardTemplatesIndexRoute
   '/dashboard/videos/': typeof DashboardVideosIndexRoute
+  '/dashboard/videos/$videoId/clips': typeof DashboardVideosVideoIdClipsRoute
+  '/dashboard/videos/$videoId/transcription': typeof DashboardVideosVideoIdTranscriptionRoute
   '/demo/start/ssr/data-only': typeof DemoStartSsrDataOnlyRoute
   '/demo/start/ssr/full-ssr': typeof DemoStartSsrFullSsrRoute
   '/demo/start/ssr/spa-mode': typeof DemoStartSsrSpaModeRoute
@@ -286,17 +370,24 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dashboard'
+    | '/editor'
+    | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/register'
+    | '/auth/reset-password'
+    | '/auth/verify-email'
     | '/demo/better-auth'
     | '/demo/store'
     | '/demo/table'
     | '/demo/tanstack-query'
+    | '/editor/$clipId'
     | '/dashboard/'
     | '/api/auth/$'
     | '/dashboard/clips/$clipId'
     | '/dashboard/projects/$projectId'
+    | '/dashboard/settings/billing'
     | '/dashboard/settings/profile'
+    | '/dashboard/settings/usage'
     | '/dashboard/videos/upload'
     | '/demo/api/names'
     | '/demo/api/tq-todos'
@@ -308,6 +399,8 @@ export interface FileRouteTypes {
     | '/dashboard/projects/'
     | '/dashboard/templates/'
     | '/dashboard/videos/'
+    | '/dashboard/videos/$videoId/clips'
+    | '/dashboard/videos/$videoId/transcription'
     | '/demo/start/ssr/data-only'
     | '/demo/start/ssr/full-ssr'
     | '/demo/start/ssr/spa-mode'
@@ -316,17 +409,24 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/editor'
+    | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/register'
+    | '/auth/reset-password'
+    | '/auth/verify-email'
     | '/demo/better-auth'
     | '/demo/store'
     | '/demo/table'
     | '/demo/tanstack-query'
+    | '/editor/$clipId'
     | '/dashboard'
     | '/api/auth/$'
     | '/dashboard/clips/$clipId'
     | '/dashboard/projects/$projectId'
+    | '/dashboard/settings/billing'
     | '/dashboard/settings/profile'
+    | '/dashboard/settings/usage'
     | '/dashboard/videos/upload'
     | '/demo/api/names'
     | '/demo/api/tq-todos'
@@ -338,6 +438,8 @@ export interface FileRouteTypes {
     | '/dashboard/projects'
     | '/dashboard/templates'
     | '/dashboard/videos'
+    | '/dashboard/videos/$videoId/clips'
+    | '/dashboard/videos/$videoId/transcription'
     | '/demo/start/ssr/data-only'
     | '/demo/start/ssr/full-ssr'
     | '/demo/start/ssr/spa-mode'
@@ -347,17 +449,24 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/dashboard'
+    | '/editor'
+    | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/register'
+    | '/auth/reset-password'
+    | '/auth/verify-email'
     | '/demo/better-auth'
     | '/demo/store'
     | '/demo/table'
     | '/demo/tanstack-query'
+    | '/editor/$clipId'
     | '/dashboard/'
     | '/api/auth/$'
     | '/dashboard/clips/$clipId'
     | '/dashboard/projects/$projectId'
+    | '/dashboard/settings/billing'
     | '/dashboard/settings/profile'
+    | '/dashboard/settings/usage'
     | '/dashboard/videos/upload'
     | '/demo/api/names'
     | '/demo/api/tq-todos'
@@ -369,6 +478,8 @@ export interface FileRouteTypes {
     | '/dashboard/projects/'
     | '/dashboard/templates/'
     | '/dashboard/videos/'
+    | '/dashboard/videos/$videoId/clips'
+    | '/dashboard/videos/$videoId/transcription'
     | '/demo/start/ssr/data-only'
     | '/demo/start/ssr/full-ssr'
     | '/demo/start/ssr/spa-mode'
@@ -379,8 +490,12 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRouteWithChildren
+  EditorRoute: typeof EditorRouteWithChildren
+  AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthRegisterRoute: typeof AuthRegisterRoute
+  AuthResetPasswordRoute: typeof AuthResetPasswordRoute
+  AuthVerifyEmailRoute: typeof AuthVerifyEmailRoute
   DemoBetterAuthRoute: typeof DemoBetterAuthRoute
   DemoStoreRoute: typeof DemoStoreRoute
   DemoTableRoute: typeof DemoTableRoute
@@ -400,6 +515,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/editor': {
+      id: '/editor'
+      path: '/editor'
+      fullPath: '/editor'
+      preLoaderRoute: typeof EditorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -420,6 +542,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/dashboard/'
       preLoaderRoute: typeof DashboardIndexRouteImport
       parentRoute: typeof DashboardRoute
+    }
+    '/editor/$clipId': {
+      id: '/editor/$clipId'
+      path: '/$clipId'
+      fullPath: '/editor/$clipId'
+      preLoaderRoute: typeof EditorClipIdRouteImport
+      parentRoute: typeof EditorRoute
     }
     '/demo/tanstack-query': {
       id: '/demo/tanstack-query'
@@ -449,6 +578,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DemoBetterAuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/verify-email': {
+      id: '/auth/verify-email'
+      path: '/auth/verify-email'
+      fullPath: '/auth/verify-email'
+      preLoaderRoute: typeof AuthVerifyEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/reset-password': {
+      id: '/auth/reset-password'
+      path: '/auth/reset-password'
+      fullPath: '/auth/reset-password'
+      preLoaderRoute: typeof AuthResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/register': {
       id: '/auth/register'
       path: '/auth/register'
@@ -461,6 +604,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/login'
       fullPath: '/auth/login'
       preLoaderRoute: typeof AuthLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/forgot-password': {
+      id: '/auth/forgot-password'
+      path: '/auth/forgot-password'
+      fullPath: '/auth/forgot-password'
+      preLoaderRoute: typeof AuthForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard/videos/': {
@@ -540,11 +690,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardVideosUploadRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/settings/usage': {
+      id: '/dashboard/settings/usage'
+      path: '/settings/usage'
+      fullPath: '/dashboard/settings/usage'
+      preLoaderRoute: typeof DashboardSettingsUsageRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/settings/profile': {
       id: '/dashboard/settings/profile'
       path: '/settings/profile'
       fullPath: '/dashboard/settings/profile'
       preLoaderRoute: typeof DashboardSettingsProfileRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/settings/billing': {
+      id: '/dashboard/settings/billing'
+      path: '/settings/billing'
+      fullPath: '/dashboard/settings/billing'
+      preLoaderRoute: typeof DashboardSettingsBillingRouteImport
       parentRoute: typeof DashboardRoute
     }
     '/dashboard/projects/$projectId': {
@@ -603,6 +767,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DemoStartSsrDataOnlyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/videos/$videoId/transcription': {
+      id: '/dashboard/videos/$videoId/transcription'
+      path: '/videos/$videoId/transcription'
+      fullPath: '/dashboard/videos/$videoId/transcription'
+      preLoaderRoute: typeof DashboardVideosVideoIdTranscriptionRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/videos/$videoId/clips': {
+      id: '/dashboard/videos/$videoId/clips'
+      path: '/videos/$videoId/clips'
+      fullPath: '/dashboard/videos/$videoId/clips'
+      preLoaderRoute: typeof DashboardVideosVideoIdClipsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
   }
 }
 
@@ -610,12 +788,16 @@ interface DashboardRouteChildren {
   DashboardIndexRoute: typeof DashboardIndexRoute
   DashboardClipsClipIdRoute: typeof DashboardClipsClipIdRoute
   DashboardProjectsProjectIdRoute: typeof DashboardProjectsProjectIdRoute
+  DashboardSettingsBillingRoute: typeof DashboardSettingsBillingRoute
   DashboardSettingsProfileRoute: typeof DashboardSettingsProfileRoute
+  DashboardSettingsUsageRoute: typeof DashboardSettingsUsageRoute
   DashboardVideosUploadRoute: typeof DashboardVideosUploadRoute
   DashboardClipsIndexRoute: typeof DashboardClipsIndexRoute
   DashboardProjectsIndexRoute: typeof DashboardProjectsIndexRoute
   DashboardTemplatesIndexRoute: typeof DashboardTemplatesIndexRoute
   DashboardVideosIndexRoute: typeof DashboardVideosIndexRoute
+  DashboardVideosVideoIdClipsRoute: typeof DashboardVideosVideoIdClipsRoute
+  DashboardVideosVideoIdTranscriptionRoute: typeof DashboardVideosVideoIdTranscriptionRoute
   DashboardVideosVideoIdIndexRoute: typeof DashboardVideosVideoIdIndexRoute
 }
 
@@ -623,12 +805,17 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardIndexRoute: DashboardIndexRoute,
   DashboardClipsClipIdRoute: DashboardClipsClipIdRoute,
   DashboardProjectsProjectIdRoute: DashboardProjectsProjectIdRoute,
+  DashboardSettingsBillingRoute: DashboardSettingsBillingRoute,
   DashboardSettingsProfileRoute: DashboardSettingsProfileRoute,
+  DashboardSettingsUsageRoute: DashboardSettingsUsageRoute,
   DashboardVideosUploadRoute: DashboardVideosUploadRoute,
   DashboardClipsIndexRoute: DashboardClipsIndexRoute,
   DashboardProjectsIndexRoute: DashboardProjectsIndexRoute,
   DashboardTemplatesIndexRoute: DashboardTemplatesIndexRoute,
   DashboardVideosIndexRoute: DashboardVideosIndexRoute,
+  DashboardVideosVideoIdClipsRoute: DashboardVideosVideoIdClipsRoute,
+  DashboardVideosVideoIdTranscriptionRoute:
+    DashboardVideosVideoIdTranscriptionRoute,
   DashboardVideosVideoIdIndexRoute: DashboardVideosVideoIdIndexRoute,
 }
 
@@ -636,11 +823,26 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
   DashboardRouteChildren,
 )
 
+interface EditorRouteChildren {
+  EditorClipIdRoute: typeof EditorClipIdRoute
+}
+
+const EditorRouteChildren: EditorRouteChildren = {
+  EditorClipIdRoute: EditorClipIdRoute,
+}
+
+const EditorRouteWithChildren =
+  EditorRoute._addFileChildren(EditorRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRouteWithChildren,
+  EditorRoute: EditorRouteWithChildren,
+  AuthForgotPasswordRoute: AuthForgotPasswordRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthRegisterRoute: AuthRegisterRoute,
+  AuthResetPasswordRoute: AuthResetPasswordRoute,
+  AuthVerifyEmailRoute: AuthVerifyEmailRoute,
   DemoBetterAuthRoute: DemoBetterAuthRoute,
   DemoStoreRoute: DemoStoreRoute,
   DemoTableRoute: DemoTableRoute,

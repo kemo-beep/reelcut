@@ -12,10 +12,25 @@ type Config struct {
 	Database DatabaseConfig
 	Redis    RedisConfig
 	JWT      JWTConfig
+	Email    EmailConfig
 	S3       S3Config
 	Asynq    AsynqConfig
 	Whisper  WhisperConfig
 	Stripe   StripeConfig
+}
+
+// EmailConfig for transactional email (password reset, verification). Use SMTP (e.g. SendGrid SMTP relay).
+type EmailConfig struct {
+	From             string
+	FrontendBaseURL  string
+	SMTPHost         string
+	SMTPPort         int
+	SMTPUser         string
+	SMTPPassword     string
+	SMTPUseTLS       bool
+	TokenSecret      string // secret for one-time JWT (reset/verify)
+	TokenExpiryReset time.Duration
+	TokenExpiryVerify time.Duration
 }
 
 type StripeConfig struct {
@@ -66,7 +81,8 @@ type AsynqConfig struct {
 }
 
 type WhisperConfig struct {
-	APIKey string
+	APIKey      string // OpenAI API key (used when WebSocketURL is empty)
+	WebSocketURL string // WhisperLiveKit ASR WebSocket base URL (e.g. ws://localhost:8000). If set, used instead of OpenAI.
 }
 
 func Load() (*Config, error) {
@@ -164,12 +180,25 @@ func Load() (*Config, error) {
 			Concurrency: asynqConcurrency,
 		},
 		Whisper: WhisperConfig{
-			APIKey: getEnv("OPENAI_API_KEY", ""),
+			APIKey:        getEnv("OPENAI_API_KEY", ""),
+			WebSocketURL:  getEnv("TRANSCRIPTION_WS_URL", ""),
 		},
 		Stripe: StripeConfig{
 			SecretKey:     getEnv("STRIPE_SECRET_KEY", ""),
 			WebhookSecret: getEnv("STRIPE_WEBHOOK_SECRET", ""),
 			PriceIDPro:    getEnv("STRIPE_PRICE_ID_PRO", ""),
+		},
+		Email: EmailConfig{
+			From:              getEnv("EMAIL_FROM", "noreply@reelcut.local"),
+			FrontendBaseURL:   getEnv("FRONTEND_BASE_URL", "http://localhost:5173"),
+			SMTPHost:          getEnv("SMTP_HOST", ""),
+			SMTPPort:          getEnvInt("SMTP_PORT", 587),
+			SMTPUser:          getEnv("SMTP_USER", ""),
+			SMTPPassword:      getEnv("SMTP_PASSWORD", ""),
+			SMTPUseTLS:        getEnv("SMTP_USE_TLS", "true") == "true",
+			TokenSecret:       getEnv("EMAIL_TOKEN_SECRET", getEnv("JWT_SECRET", "change-me-in-production")),
+			TokenExpiryReset:  getEnvDuration("EMAIL_RESET_EXPIRY", 1*time.Hour),
+			TokenExpiryVerify: getEnvDuration("EMAIL_VERIFY_EXPIRY", 24*time.Hour),
 		},
 	}
 
@@ -185,6 +214,24 @@ func Load() (*Config, error) {
 func getEnv(key, defaultVal string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
+	}
+	return defaultVal
+}
+
+func getEnvInt(key string, defaultVal int) int {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			return n
+		}
+	}
+	return defaultVal
+}
+
+func getEnvDuration(key string, defaultVal time.Duration) time.Duration {
+	if v := os.Getenv(key); v != "" {
+		if d, err := time.ParseDuration(v); err == nil {
+			return d
+		}
 	}
 	return defaultVal
 }

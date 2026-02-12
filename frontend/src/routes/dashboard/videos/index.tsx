@@ -31,6 +31,11 @@ function VideosListPage() {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['videos'],
     queryFn: () => listVideos({ per_page: 50 }),
+    refetchInterval: (query) => {
+      const videos = (query.state.data as { data?: { videos?: { status: string }[] } })?.data?.videos ?? []
+      const hasProcessing = videos.some((v) => v.status === 'processing' || v.status === 'uploading')
+      return hasProcessing ? 3000 : false
+    },
   })
 
   if (isLoading) {

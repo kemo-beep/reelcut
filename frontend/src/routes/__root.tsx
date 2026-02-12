@@ -1,13 +1,17 @@
+import { useEffect } from 'react'
 import {
   HeadContent,
   Scripts,
   createRootRouteWithContext,
+  useNavigate,
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
+import { toast } from 'sonner'
 
 import Header from '../components/Header'
 import { ThemeProvider } from '../components/ThemeProvider'
+import { useAuthStore } from '../stores/authStore'
 
 import StoreDevtools from '../lib/demo-store-devtools'
 
@@ -74,6 +78,15 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 })
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  const navigate = useNavigate()
+  useEffect(() => {
+    useAuthStore.getState().setOnSessionExpired(() => {
+      toast.error('Session expired. Please log in again.')
+      navigate({ to: '/login' })
+    })
+    return () => useAuthStore.getState().setOnSessionExpired(null)
+  }, [navigate])
+
   return (
     <html lang="en">
       <head>

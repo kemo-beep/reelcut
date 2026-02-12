@@ -12,6 +12,7 @@ type UserRepository interface {
 	GetByEmail(ctx context.Context, email string) (*domain.User, error)
 	Update(ctx context.Context, u *domain.User) error
 	UpdatePassword(ctx context.Context, userID string, passwordHash string) error
+	SetEmailVerified(ctx context.Context, userID string, verified bool) error
 	DeductCredits(ctx context.Context, userID string, amount int) error
 	Delete(ctx context.Context, id string) error
 }
@@ -50,6 +51,7 @@ type TranscriptionRepository interface {
 type TranscriptSegmentRepository interface {
 	GetByTranscriptionID(ctx context.Context, transcriptionID string) ([]*domain.TranscriptSegment, error)
 	Update(ctx context.Context, s *domain.TranscriptSegment) error
+	CreateBatch(ctx context.Context, segments []*domain.TranscriptSegment) error
 }
 
 type TranscriptWordRepository interface {

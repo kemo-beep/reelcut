@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"reelcut/internal/domain"
@@ -97,8 +98,7 @@ func (h *TranscriptionHandler) GetByID(c *gin.Context) {
 // @Produce		json
 // @Security	BearerAuth
 // @Param		videoId	path		string	true	"Video ID"
-// @Success	200	{object}	object
-// @Failure	404	{object}	utils.ErrorResponse
+// @Success	200	{object}	object	"Returns { transcription: <object> } or { transcription: null } when none"
 // @Router		/api/v1/transcriptions/videos/{videoId} [get]
 func (h *TranscriptionHandler) GetByVideoID(c *gin.Context) {
 	if middleware.GetUserID(c) == "" {
@@ -108,7 +108,13 @@ func (h *TranscriptionHandler) GetByVideoID(c *gin.Context) {
 	videoID := c.Param("videoId")
 	t, err := h.transcriptionSvc.GetByVideoID(c.Request.Context(), videoID)
 	if err != nil {
-		utils.NotFound(c, "Transcription not found")
+		// Contract: this endpoint must never return 404 for "no transcription"; return 200 + null so UI shows empty state.
+		// Do not call c.Error() so the global error handler does not convert this to 404.
+		if err == domain.ErrNotFound || errors.Is(err, domain.ErrNotFound) {
+			c.JSON(http.StatusOK, gin.H{"transcription": nil})
+			return
+		}
+		utils.Internal(c, "")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"transcription": t})

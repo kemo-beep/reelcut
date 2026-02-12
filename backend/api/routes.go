@@ -1,6 +1,8 @@
 package api
 
 import (
+	"os"
+
 	"reelcut/internal/handler"
 	"reelcut/internal/middleware"
 
@@ -27,7 +29,8 @@ func SetupRoutes(r *gin.Engine, h *handler.Handler, m *middleware.AuthMiddleware
 
 	protected := r.Group("/api/v1")
 	protected.Use(m.Authenticate())
-	if rdb != nil {
+	// Rate limit only when explicitly enabled (e.g. production). Off by default so local dev never hits 429.
+	if rdb != nil && os.Getenv("ENABLE_RATE_LIMIT") == "1" {
 		protected.Use(middleware.RateLimit(rdb, middleware.TierFromUser))
 	}
 	{
@@ -77,9 +80,10 @@ func SetupRoutes(r *gin.Engine, h *handler.Handler, m *middleware.AuthMiddleware
 
 		transcriptions := protected.Group("/transcriptions")
 		{
+			// More specific routes first so GET .../videos/:videoId is matched before GET /:id (avoids 404 when no transcription).
 			transcriptions.POST("/videos/:videoId", h.Transcription.Create)
-			transcriptions.GET("/:id", h.Transcription.GetByID)
 			transcriptions.GET("/videos/:videoId", h.Transcription.GetByVideoID)
+			transcriptions.GET("/:id", h.Transcription.GetByID)
 			transcriptions.PUT("/:id/segments/:segmentId", h.Transcription.UpdateSegment)
 		}
 

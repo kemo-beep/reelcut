@@ -56,6 +56,54 @@ func ExtractAudio(ctx context.Context, inputPath, outputPath string) error {
 	return nil
 }
 
+// ExtractAudioChunk extracts a time range [startSec, startSec+durationSec) from an audio file
+// into outputPath, using the same format as ExtractAudio (pcm_s16le, 16kHz, mono).
+func ExtractAudioChunk(ctx context.Context, inputPath, outputPath string, startSec, durationSec float64) error {
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+		return err
+	}
+	args := []string{
+		"-y",
+		"-ss", fmt.Sprintf("%.3f", startSec),
+		"-i", inputPath,
+		"-t", fmt.Sprintf("%.3f", durationSec),
+		"-vn",
+		"-acodec", "pcm_s16le",
+		"-ar", "16000",
+		"-ac", "1",
+		outputPath,
+	}
+	out, err := RunFFmpeg(ctx, args...)
+	if err != nil {
+		return fmt.Errorf("ffmpeg extract audio chunk: %w (output: %s)", err, string(out))
+	}
+	return nil
+}
+
+// ExtractAudioChunkFromVideo extracts a time range [startSec, startSec+durationSec) from a video file
+// into outputPath, using the same format as ExtractAudio (pcm_s16le, 16kHz, mono).
+func ExtractAudioChunkFromVideo(ctx context.Context, videoPath, outputPath string, startSec, durationSec float64) error {
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+		return err
+	}
+	args := []string{
+		"-y",
+		"-ss", fmt.Sprintf("%.3f", startSec),
+		"-i", videoPath,
+		"-t", fmt.Sprintf("%.3f", durationSec),
+		"-vn",
+		"-acodec", "pcm_s16le",
+		"-ar", "16000",
+		"-ac", "1",
+		outputPath,
+	}
+	out, err := RunFFmpeg(ctx, args...)
+	if err != nil {
+		return fmt.Errorf("ffmpeg extract audio chunk from video: %w (output: %s)", err, string(out))
+	}
+	return nil
+}
+
 // Cut trims video to [start, end] seconds.
 func Cut(ctx context.Context, inputPath, outputPath string, start, end float64) error {
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {

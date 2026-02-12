@@ -74,9 +74,17 @@ function LoginPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password" className="text-label">
-              Password
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password" className="text-label">
+                Password
+              </Label>
+              <Link
+                to="/auth/forgot-password"
+                className="text-xs font-medium text-[var(--app-fg-muted)] hover:text-[var(--app-accent)]"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <Input
               id="password"
               type="password"

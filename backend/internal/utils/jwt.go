@@ -136,3 +136,60 @@ func ParseThumbnailToken(tokenString, secret string) (*ThumbnailClaims, error) {
 	}
 	return claims, nil
 }
+
+// OneTimeClaims for password reset and email verification tokens.
+type OneTimeClaims struct {
+	jwt.RegisteredClaims
+	UserID  string `json:"user_id"`
+	Email   string `json:"email"`
+	Purpose string `json:"purpose"` // "password_reset" or "email_verify"
+}
+
+func IssuePasswordResetToken(userID, email, secret string, expiry time.Duration) (string, error) {
+	exp := time.Now().Add(expiry)
+	claims := OneTimeClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(exp),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			ID:        uuid.New().String(),
+		},
+		UserID:  userID,
+		Email:   email,
+		Purpose: "password_reset",
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(secret))
+}
+
+func IssueEmailVerifyToken(userID, email, secret string, expiry time.Duration) (string, error) {
+	exp := time.Now().Add(expiry)
+	claims := OneTimeClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(exp),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			ID:        uuid.New().String(),
+		},
+		UserID:  userID,
+		Email:   email,
+		Purpose: "email_verify",
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(secret))
+}
+
+func ParseOneTimeToken(tokenString, secret, purpose string) (*OneTimeClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &OneTimeClaims{}, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, ErrInvalidToken
+		}
+		return []byte(secret), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	claims, ok := token.Claims.(*OneTimeClaims)
+	if !ok || !token.Valid || claims.Purpose != purpose {
+		return nil, ErrInvalidToken
+	}
+	return claims, nil
+}

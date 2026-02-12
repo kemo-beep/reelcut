@@ -1,5 +1,6 @@
 import { get, post, put } from './client'
 import type { Transcription, TranscriptSegment } from '../../types'
+import { ApiError } from '../../types'
 
 export interface CreateTranscriptionInput {
   language?: string
@@ -17,8 +18,16 @@ export async function getTranscription(id: string): Promise<{ transcription: Tra
   return get(`/api/v1/transcriptions/${id}`)
 }
 
-export async function getTranscriptionByVideoId(videoId: string): Promise<{ transcription: Transcription }> {
-  return get(`/api/v1/transcriptions/videos/${videoId}`)
+/** Get transcription by video ID. Treats 404 as "no transcription" and returns null so the UI can show empty state. */
+export async function getTranscriptionByVideoId(videoId: string): Promise<{ transcription: Transcription | null }> {
+  try {
+    return await get<{ transcription: Transcription | null }>(`/api/v1/transcriptions/videos/${videoId}`)
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) {
+      return { transcription: null }
+    }
+    throw e
+  }
 }
 
 export async function updateSegment(

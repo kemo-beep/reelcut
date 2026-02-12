@@ -12,8 +12,8 @@ import (
 )
 
 var limitsByTier = map[string]int{
-	"free":      100,
-	"pro":       1000,
+	"free":       2000,  // per hour per IP; 100 was too low for normal dev/frontend refetches
+	"pro":        1000,
 	"enterprise": 10000,
 }
 
@@ -26,7 +26,7 @@ func RateLimit(rdb *redis.Client, getTier func(c *gin.Context) string) gin.Handl
 		}
 		limit := limitsByTier[tier]
 		if limit <= 0 {
-			limit = 100
+			limit = 2000
 		}
 		window := time.Hour
 		ctx := context.Background()

@@ -169,6 +169,10 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 			utils.ValidationError(c, []utils.ErrorDetail{{Field: ve.Field, Message: ve.Message}})
 			return
 		}
+		if err == service.ErrInvalidToken {
+			utils.Unauthorized(c, "Invalid or expired reset token")
+			return
+		}
 		utils.Internal(c, "")
 		return
 	}
@@ -193,7 +197,11 @@ func (h *AuthHandler) VerifyEmail(c *gin.Context) {
 		return
 	}
 	if err := h.auth.VerifyEmail(c.Request.Context(), body.Token); err != nil {
-		utils.Unauthorized(c, "Invalid verification token")
+		if err == service.ErrInvalidToken {
+			utils.Unauthorized(c, "Invalid or expired verification token")
+			return
+		}
+		utils.Internal(c, "")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Email verified"})

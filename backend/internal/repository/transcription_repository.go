@@ -35,10 +35,18 @@ func (r *transcriptionRepository) GetByID(ctx context.Context, id string) (*doma
 }
 
 func (r *transcriptionRepository) GetByVideoID(ctx context.Context, videoID string) (*domain.Transcription, error) {
-	query := `SELECT id, video_id, language, status, error_message, word_count, duration_seconds, confidence_avg, created_at, updated_at
-		FROM transcriptions WHERE video_id = $1 ORDER BY created_at DESC LIMIT 1`
+	// Prefer a completed transcription so we don't hide existing transcripts when a later empty retry exists.
+	queryCompleted := `SELECT id, video_id, language, status, error_message, word_count, duration_seconds, confidence_avg, created_at, updated_at
+		FROM transcriptions WHERE video_id = $1 AND status = 'completed' ORDER BY created_at DESC LIMIT 1`
 	var t domain.Transcription
-	err := r.pool.QueryRow(ctx, query, videoID).Scan(&t.ID, &t.VideoID, &t.Language, &t.Status, &t.ErrorMessage, &t.WordCount, &t.DurationSeconds, &t.ConfidenceAvg, &t.CreatedAt, &t.UpdatedAt)
+	err := r.pool.QueryRow(ctx, queryCompleted, videoID).Scan(&t.ID, &t.VideoID, &t.Language, &t.Status, &t.ErrorMessage, &t.WordCount, &t.DurationSeconds, &t.ConfidenceAvg, &t.CreatedAt, &t.UpdatedAt)
+	if err == nil {
+		return &t, nil
+	}
+	// No completed transcription; return latest (e.g. in-progress or failed) so UI can show status or retry.
+	queryLatest := `SELECT id, video_id, language, status, error_message, word_count, duration_seconds, confidence_avg, created_at, updated_at
+		FROM transcriptions WHERE video_id = $1 ORDER BY created_at DESC LIMIT 1`
+	err = r.pool.QueryRow(ctx, queryLatest, videoID).Scan(&t.ID, &t.VideoID, &t.Language, &t.Status, &t.ErrorMessage, &t.WordCount, &t.DurationSeconds, &t.ConfidenceAvg, &t.CreatedAt, &t.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}

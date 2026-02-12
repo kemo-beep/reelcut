@@ -21,6 +21,7 @@ export interface Transcription {
   video_id: string
   language: string
   status: 'pending' | 'processing' | 'completed' | 'failed'
+  error_message?: string | null
   segments?: TranscriptSegment[]
   created_at: string
 }

@@ -40,3 +40,15 @@ func (r *transcriptSegmentRepository) Update(ctx context.Context, s *domain.Tran
 	_, err := r.pool.Exec(ctx, query, s.ID, s.Text, s.StartTime, s.EndTime, s.Confidence, s.SpeakerID, s.SequenceOrder)
 	return err
 }
+
+func (r *transcriptSegmentRepository) CreateBatch(ctx context.Context, segments []*domain.TranscriptSegment) error {
+	for _, s := range segments {
+		_, err := r.pool.Exec(ctx, `INSERT INTO transcript_segments (id, transcription_id, start_time, end_time, text, confidence, speaker_id, sequence_order)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+			s.ID, s.TranscriptionID, s.StartTime, s.EndTime, s.Text, s.Confidence, s.SpeakerID, s.SequenceOrder)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

@@ -77,7 +77,14 @@ func (s *VideoService) ConfirmUpload(ctx context.Context, videoID uuid.UUID) err
 	}
 	usageLog := &domain.UsageLog{ID: uuid.New(), UserID: v.UserID, Action: "video_upload", CreditsUsed: 1}
 	_ = s.usageLogRepo.Create(ctx, usageLog)
-	v.Status = "processing"
+	// Mark video as ready immediately after confirming upload so the UI and
+	// transcription flow don't get stuck in a perpetual "processing" state
+	// if background metadata/thumbnail jobs are slow or fail.
+	//
+	// Background workers will still enrich the video record with metadata
+	// and thumbnails, but the core actions (playback, transcription, clips)
+	// can proceed as soon as the upload is confirmed.
+	v.Status = "ready"
 	if err := s.videoRepo.Update(ctx, v); err != nil {
 		return err
 	}

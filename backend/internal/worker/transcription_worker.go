@@ -8,10 +8,12 @@ import (
 	"path/filepath"
 
 	"reelcut/internal/ai"
+	"reelcut/internal/domain"
 	"reelcut/internal/queue"
 	"reelcut/internal/repository"
 	"reelcut/internal/video"
 
+	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 )
 
@@ -21,7 +23,7 @@ type TranscriptionWorker struct {
 	wordRepo          repository.TranscriptWordRepository
 	videoRepo         repository.VideoRepository
 	storage           StorageDownloader
-	whisper           *ai.WhisperClient
+	transcriber       ai.Transcriber
 }
 
 type StorageDownloader interface {
@@ -34,7 +36,7 @@ func NewTranscriptionWorker(
 	wordRepo repository.TranscriptWordRepository,
 	videoRepo repository.VideoRepository,
 	storage StorageDownloader,
-	whisper *ai.WhisperClient,
+	transcriber ai.Transcriber,
 ) *TranscriptionWorker {
 	return &TranscriptionWorker{
 		transcriptionRepo: transcriptionRepo,
@@ -42,13 +44,15 @@ func NewTranscriptionWorker(
 		wordRepo:         wordRepo,
 		videoRepo:        videoRepo,
 		storage:          storage,
-		whisper:          whisper,
+		transcriber:      transcriber,
 	}
 }
 
 func (w *TranscriptionWorker) Register(mux *asynq.ServeMux) {
 	mux.Handle(queue.TypeTranscription, asynq.HandlerFunc(w.Handle))
 }
+
+const transcriptionChunkSeconds = 60.0
 
 func (w *TranscriptionWorker) Handle(ctx context.Context, t *asynq.Task) error {
 	payload, err := queue.ParseTranscriptionPayload(t.Payload())
@@ -63,35 +67,106 @@ func (w *TranscriptionWorker) Handle(ctx context.Context, t *asynq.Task) error {
 	if err != nil || tr == nil {
 		return fmt.Errorf("transcription not found: %s", payload.TranscriptionID)
 	}
-	tmpDir := os.TempDir()
-	videoPath := filepath.Join(tmpDir, "reelcut", v.ID.String()+".mp4")
-	os.MkdirAll(filepath.Dir(videoPath), 0755)
+	tmpDir := filepath.Join(os.TempDir(), "reelcut", v.ID.String(), tr.ID.String())
+	os.MkdirAll(tmpDir, 0755)
+	videoPath := filepath.Join(tmpDir, "video.mp4")
 	rc, err := w.storage.Download(ctx, v.StoragePath)
 	if err != nil {
-		w.updateStatus(ctx, payload.TranscriptionID, "failed")
+		w.updateStatusWithError(ctx, payload.TranscriptionID, "failed", err.Error())
 		return err
 	}
 	f, _ := os.Create(videoPath)
 	io.Copy(f, rc)
 	rc.Close()
 	f.Close()
-	defer os.Remove(videoPath)
+	defer os.RemoveAll(tmpDir)
 
-	audioPath := filepath.Join(tmpDir, "reelcut", v.ID.String()+".wav")
-	if err := video.ExtractAudio(ctx, videoPath, audioPath); err != nil {
-		w.updateStatus(ctx, payload.TranscriptionID, "failed")
-		return err
+	meta, err := video.GetMetadata(ctx, videoPath)
+	if err != nil || meta == nil {
+		msg := "video metadata: "
+		if err != nil {
+			msg += err.Error()
+		} else {
+			msg += "no metadata"
+		}
+		w.updateStatusWithError(ctx, payload.TranscriptionID, "failed", msg)
+		return fmt.Errorf("video metadata: %w", err)
 	}
-	defer os.Remove(audioPath)
+	duration := meta.DurationSeconds
+	if duration <= 0 {
+		duration = transcriptionChunkSeconds
+	}
 
-	result, err := w.whisper.TranscribeFile(ctx, audioPath, tr.Language)
-	if err != nil {
-		w.updateStatus(ctx, payload.TranscriptionID, "failed")
-		return err
+	sequenceOrder := 0
+	for chunkStart := 0.0; chunkStart < duration; chunkStart += transcriptionChunkSeconds {
+		chunkDur := transcriptionChunkSeconds
+		if chunkStart+chunkDur > duration {
+			chunkDur = duration - chunkStart
+		}
+		if chunkDur <= 0 {
+			break
+		}
+		chunkPath := filepath.Join(tmpDir, fmt.Sprintf("chunk_%.0f.wav", chunkStart))
+		if err := video.ExtractAudioChunkFromVideo(ctx, videoPath, chunkPath, chunkStart, chunkDur); err != nil {
+			w.updateStatusWithError(ctx, payload.TranscriptionID, "failed", fmt.Sprintf("extract chunk at %.0fs: %v", chunkStart, err))
+			return fmt.Errorf("extract chunk at %.0fs: %w", chunkStart, err)
+		}
+		result, err := w.transcriber.TranscribeFile(ctx, chunkPath, tr.Language)
+		os.Remove(chunkPath)
+		if err != nil {
+			w.updateStatusWithError(ctx, payload.TranscriptionID, "failed", fmt.Sprintf("transcribe chunk at %.0fs: %v", chunkStart, err))
+			return fmt.Errorf("transcribe chunk at %.0fs: %w", chunkStart, err)
+		}
+		if len(result.Segments) > 0 {
+			segments := make([]*domain.TranscriptSegment, 0, len(result.Segments))
+			wordsBySegment := make([][]*domain.TranscriptWord, 0, len(result.Segments))
+			for i, seg := range result.Segments {
+				globalStart := seg.Start + chunkStart
+				globalEnd := seg.End + chunkStart
+				if globalEnd <= globalStart {
+					globalEnd = globalStart + 0.001
+				}
+				s := &domain.TranscriptSegment{
+					ID:             uuid.New(),
+					TranscriptionID: tr.ID,
+					StartTime:      globalStart,
+					EndTime:        globalEnd,
+					Text:           seg.Text,
+					SequenceOrder:  sequenceOrder + i,
+				}
+				segments = append(segments, s)
+				var segmentWords []*domain.TranscriptWord
+				for _, w := range result.Words {
+					mid := (w.Start + w.End) / 2
+					if mid >= seg.Start && mid <= seg.End {
+						segmentWords = append(segmentWords, &domain.TranscriptWord{
+							ID:            uuid.New(),
+							SegmentID:     s.ID,
+							Word:          w.Word,
+							StartTime:     w.Start + chunkStart,
+							EndTime:       w.End + chunkStart,
+							SequenceOrder: len(segmentWords),
+						})
+					}
+				}
+				wordsBySegment = append(wordsBySegment, segmentWords)
+			}
+			if err := w.segmentRepo.CreateBatch(ctx, segments); err != nil {
+				w.updateStatusWithError(ctx, payload.TranscriptionID, "failed", "persist segments: "+err.Error())
+				return fmt.Errorf("persist segments: %w", err)
+			}
+			for _, segmentWords := range wordsBySegment {
+				if len(segmentWords) > 0 {
+					if err := w.wordRepo.CreateBatch(ctx, segmentWords); err != nil {
+						w.updateStatusWithError(ctx, payload.TranscriptionID, "failed", "persist words: "+err.Error())
+						return fmt.Errorf("persist words: %w", err)
+					}
+				}
+			}
+			sequenceOrder += len(segments)
+		}
 	}
-	if len(result.Segments) > 0 {
-		// TODO: persist segments and words; for now just mark completed
-	}
+
 	tr.Status = "completed"
 	if err := w.transcriptionRepo.Update(ctx, tr); err != nil {
 		return err
@@ -100,9 +175,16 @@ func (w *TranscriptionWorker) Handle(ctx context.Context, t *asynq.Task) error {
 }
 
 func (w *TranscriptionWorker) updateStatus(ctx context.Context, transcriptionID, status string) {
+	w.updateStatusWithError(ctx, transcriptionID, status, "")
+}
+
+func (w *TranscriptionWorker) updateStatusWithError(ctx context.Context, transcriptionID, status, errMsg string) {
 	tr, _ := w.transcriptionRepo.GetByID(ctx, transcriptionID)
 	if tr != nil {
 		tr.Status = status
+		if errMsg != "" {
+			tr.ErrorMessage = &errMsg
+		}
 		w.transcriptionRepo.Update(ctx, tr)
 	}
 }

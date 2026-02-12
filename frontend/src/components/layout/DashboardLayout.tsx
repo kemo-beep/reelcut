@@ -1,4 +1,8 @@
-import { Link, Outlet } from '@tanstack/react-router'
+import { Link, Outlet, useNavigate } from '@tanstack/react-router'
+import { useEffect } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { useWebSocket } from '../../hooks/useWebSocket'
+import { useAuthHasHydrated, hasStoredAuth } from '../../stores/authStore'
 import {
   LayoutDashboard,
   FolderOpen,
@@ -6,6 +10,8 @@ import {
   Scissors,
   LayoutTemplate,
   Settings,
+  CreditCard,
+  BarChart3,
 } from 'lucide-react'
 
 const nav = [
@@ -14,10 +20,41 @@ const nav = [
   { to: '/dashboard/videos', label: 'Videos', icon: Video },
   { to: '/dashboard/clips', label: 'Clips', icon: Scissors },
   { to: '/dashboard/templates', label: 'Templates', icon: LayoutTemplate },
-  { to: '/dashboard/settings/profile', label: 'Settings', icon: Settings },
+  { to: '/dashboard/settings/profile', label: 'Profile', icon: Settings },
+  { to: '/dashboard/settings/billing', label: 'Billing', icon: CreditCard },
+  { to: '/dashboard/settings/usage', label: 'Usage', icon: BarChart3 },
 ]
 
 export default function DashboardLayout() {
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const hasHydrated = useAuthHasHydrated()
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!hasHydrated) return
+    if (!hasStoredAuth()) {
+      navigate({ to: '/auth/login', search: { redirectTo: '/dashboard' } })
+    }
+  }, [hasHydrated, navigate])
+
+  useWebSocket({
+    enabled: true,
+    onMessage: (data: unknown) => {
+      const d = data as { type?: string; job?: { entity_type?: string; entity_id?: string; status?: string } }
+      if (d?.type === 'job_updated' && d.job) {
+        queryClient.invalidateQueries({ queryKey: ['jobs'] })
+        if (d.job.entity_type === 'clip' && d.job.entity_id) {
+          queryClient.invalidateQueries({ queryKey: ['clip', d.job.entity_id] })
+          queryClient.invalidateQueries({ queryKey: ['clips'] })
+        }
+        if (d.job.entity_type === 'video' && d.job.entity_id) {
+          queryClient.invalidateQueries({ queryKey: ['video', d.job.entity_id] })
+          queryClient.invalidateQueries({ queryKey: ['videos'] })
+        }
+      }
+    },
+  })
   return (
     <div className="flex min-h-screen bg-[var(--app-bg)]">
       <aside className="flex w-64 flex-shrink-0 flex-col border-r border-[var(--app-border)] bg-[var(--app-bg-raised)] shadow-card">

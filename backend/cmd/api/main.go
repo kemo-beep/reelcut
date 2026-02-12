@@ -13,6 +13,7 @@ import (
 
 	"reelcut/api"
 	"reelcut/internal/config"
+	"reelcut/internal/email"
 	"reelcut/internal/handler"
 	"reelcut/internal/middleware"
 	"reelcut/internal/ai"
@@ -119,8 +120,32 @@ func main() {
 	}
 	defer queueClient.Close()
 
-	// Services
-	authSvc := service.NewAuthService(userRepo, sessionRepo, cfg.JWT.Secret, cfg.JWT.RefreshSecret, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry)
+	// Email sender (SMTP or no-op)
+	var emailSender email.Sender = &email.NoOpSender{}
+	if cfg.Email.SMTPHost != "" && cfg.Email.SMTPPort > 0 {
+		emailSender = email.NewSMTPSender(email.SMTPConfig{
+			From:     cfg.Email.From,
+			Host:     cfg.Email.SMTPHost,
+			Port:     cfg.Email.SMTPPort,
+			Username: cfg.Email.SMTPUser,
+			Password: cfg.Email.SMTPPassword,
+			UseTLS:   cfg.Email.SMTPUseTLS,
+		})
+	}
+	authSvc := service.NewAuthServiceWithEmail(service.AuthServiceOpts{
+		UserRepo:           userRepo,
+		SessionRepo:        sessionRepo,
+		EmailSender:        emailSender,
+		EmailFrom:          cfg.Email.From,
+		FrontendBaseURL:    cfg.Email.FrontendBaseURL,
+		TokenSecret:        cfg.Email.TokenSecret,
+		TokenExpiryReset:   cfg.Email.TokenExpiryReset,
+		TokenExpiryVerify:  cfg.Email.TokenExpiryVerify,
+		JWTSecret:          cfg.JWT.Secret,
+		JWTRefresh:         cfg.JWT.RefreshSecret,
+		AccessExpiry:       cfg.JWT.AccessExpiry,
+		RefreshExpiry:      cfg.JWT.RefreshExpiry,
+	})
 	userSvc := service.NewUserService(userRepo, storageSvc)
 	videoSvc := service.NewVideoService(videoRepo, projectRepo, jobRepo, storageSvc, queueClient, userRepo, usageLogRepo)
 	transcriptionSvc := service.NewTranscriptionService(transcriptionRepo, segmentRepo, wordRepo, videoRepo, queueClient)
@@ -129,7 +154,12 @@ func main() {
 	clipSvc := service.NewClipService(clipRepo, clipStyleRepo, videoRepo, transcriptionSvc, jobRepo, queueClient, templateRepo, userRepo, usageLogRepo)
 	templateSvc := service.NewTemplateService(templateRepo)
 	subscriptionSvc := service.NewSubscriptionService(subscriptionRepo, userRepo, cfg.Stripe.SecretKey, cfg.Stripe.PriceIDPro)
-	whisperClient := ai.NewWhisperClient(cfg.Whisper.APIKey)
+	var transcriber ai.Transcriber
+	if cfg.Whisper.WebSocketURL != "" {
+		transcriber = ai.NewWhisperLiveClient(cfg.Whisper.WebSocketURL)
+	} else {
+		transcriber = ai.NewWhisperClient(cfg.Whisper.APIKey)
+	}
 
 	// Middleware
 	authMiddleware := middleware.NewAuthMiddleware(cfg.JWT.Secret, userRepo, sessionRepo)
@@ -144,7 +174,7 @@ func main() {
 	mux := asynq.NewServeMux()
 	videoWorker := worker.NewVideoWorker(videoRepo, jobRepo, storageSvc, jobNotifier)
 	videoWorker.Register(mux)
-	transcriptionWorker := worker.NewTranscriptionWorker(transcriptionRepo, segmentRepo, wordRepo, videoRepo, storageSvc, whisperClient)
+	transcriptionWorker := worker.NewTranscriptionWorker(transcriptionRepo, segmentRepo, wordRepo, videoRepo, storageSvc, transcriber)
 	transcriptionWorker.Register(mux)
 	analysisWorker := worker.NewAnalysisWorker(videoAnalysisRepo, videoRepo, transcriptionRepo, segmentRepo, storageSvc)
 	analysisWorker.Register(mux)

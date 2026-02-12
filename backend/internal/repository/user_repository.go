@@ -61,6 +61,12 @@ func (r *userRepository) UpdatePassword(ctx context.Context, userID string, pass
 	return err
 }
 
+func (r *userRepository) SetEmailVerified(ctx context.Context, userID string, verified bool) error {
+	query := `UPDATE users SET email_verified = $2, updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL`
+	_, err := r.pool.Exec(ctx, query, userID, verified)
+	return err
+}
+
 func (r *userRepository) DeductCredits(ctx context.Context, userID string, amount int) error {
 	query := `UPDATE users SET credits_remaining = credits_remaining - $2, updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL AND credits_remaining >= $2`
 	tag, err := r.pool.Exec(ctx, query, userID, amount)
