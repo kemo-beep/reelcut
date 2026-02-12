@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { ImageOff } from 'lucide-react'
 import { getClipPlaybackUrl } from '../../lib/api/clips'
+import { ViralityScore } from './ViralityScore'
 import { cn } from '../../lib/utils'
 import type { Clip } from '../../types'
 
@@ -65,6 +66,11 @@ export function ClipStripCard({ clip, isSelected, onSelect, className }: ClipStr
         <p className="text-sm font-medium text-[var(--app-fg)] truncate" title={clip.name}>
           {clip.name || `Clip`}
         </p>
+        {clip.virality_score != null && (
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <ViralityScore score={clip.virality_score} className="text-xs" />
+          </div>
+        )}
       </div>
     </button>
   )

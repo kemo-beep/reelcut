@@ -1,5 +1,6 @@
 import { Check, CheckCheck } from 'lucide-react'
 import { Button } from '../../ui/button'
+import { ViralityScore } from '../../clip/ViralityScore'
 import { formatTimeForLabel } from './utils'
 import type { ClipSuggestion } from '../../../lib/api/analysis'
 
@@ -9,10 +10,6 @@ export interface ClipSuggestionsPanelProps {
   onAcceptAll: () => void
   isAccepting: boolean
   isAcceptingAll: boolean
-}
-
-function formatViralityScore(score: number): string {
-  return score <= 1 ? score.toFixed(2) : score.toFixed(1)
 }
 
 export function ClipSuggestionsPanel({
@@ -59,11 +56,8 @@ export function ClipSuggestionsPanel({
                 {formatTimeForLabel(suggestion.start_time)}–{formatTimeForLabel(suggestion.end_time)}
               </span>
               {suggestion.virality_score != null && (
-                <span
-                  className="shrink-0 rounded bg-[var(--app-accent-muted)] px-1.5 py-0.5 text-xs font-medium text-[var(--app-accent)]"
-                  title="Virality score"
-                >
-                  {formatViralityScore(suggestion.virality_score)}
+                <span className="shrink-0">
+                  <ViralityScore score={suggestion.virality_score} />
                 </span>
               )}
               {suggestion.transcript && (

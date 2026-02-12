@@ -153,15 +153,24 @@ func buildTranscriptWithTimestamps(t *domain.Transcription) string {
 }
 
 func buildClipSuggestionPrompt(transcriptText string, minDur, maxDur float64, maxSuggestions int) string {
+	suggestLine := "Analyze the transcript and suggest 5-10 clips that would work well as short viral clips."
+	if maxSuggestions > 0 {
+		suggestLine = fmt.Sprintf("Analyze the transcript and suggest clips that would work well as short viral clips. Suggest at most %d clips.", maxSuggestions)
+	}
 	return fmt.Sprintf(`You are an expert at identifying viral short-form video clips for TikTok, Instagram Reels, and YouTube Shorts.
 
 Below is a transcript of a long-form video with timestamps in seconds in the format [start - end] text.
 
-Analyze the transcript and suggest 5-10 clips that would work well as short viral clips. Requirements:
-- Each clip must be between %.0f and %.0f seconds long. Prefer 7-15 seconds for Reels/Shorts/TikTok (max 60 seconds).
-- Start and end at natural phrase or sentence boundaries (use the exact start_time and end_time from the transcript).
-- Prefer moments with hooks, strong statements, or high engagement potential.
-- Return ONLY a valid JSON array of objects. No other text or markdown. Each object must have:
+%s
+
+Requirements:
+- Hook within first ~3 seconds: Each clip should open with a hook or engaging phrase within the first ~3 seconds. Prefer segments that start with a question, bold claim, or attention-grabbing line.
+- Complete thought or valuable insight: Each clip must contain one complete idea, tip, or takeaway—not a fragment. Do not start or end clips mid-sentence or mid-thought.
+- Natural start and end points: Boundaries must align to natural break points in the transcript (sentence boundaries, topic shifts, or clear pauses). Use only exact start_time and end_time from the transcript; no mid-word or mid-sentence cuts.
+- Optimal duration: Target 7-15 seconds per clip for maximum engagement. Each clip must be between %.0f and %.0f seconds (maximum 60 seconds).
+- Variety across clips: When suggesting multiple clips from the same video, favor variety in topics or angles so the set feels diverse and non-repetitive.
+
+Return ONLY a valid JSON array of objects. No other text or markdown. Each object must have:
   - "start_time" (number, seconds)
   - "end_time" (number, seconds)
   - "reason" (string, short explanation why this clip is viral-worthy)
@@ -169,7 +178,7 @@ Analyze the transcript and suggest 5-10 clips that would work well as short vira
   - "transcript" (string, the exact text snippet for this clip)
 
 Transcript:
-%s`, minDur, maxDur, transcriptText)
+%s`, suggestLine, minDur, maxDur, transcriptText)
 }
 
 // parseGeminiClipsJSON extracts a JSON array from the model output (handles markdown code blocks).

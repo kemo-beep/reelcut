@@ -21,9 +21,10 @@ export function ViralityScore({ score, className }: ViralityScoreProps) {
         variant === 'muted' && 'text-[var(--app-fg-subtle)]',
         className
       )}
-      title="Virality score"
+      title={`Engagement potential: ${pct}/100`}
+      aria-label={`Engagement score ${pct} out of 100`}
     >
-      <TrendingUp size={14} />
+      <TrendingUp size={14} aria-hidden />
       {pct}
     </span>
   )

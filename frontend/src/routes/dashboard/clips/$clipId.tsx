@@ -2,6 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getClip, getClipPlaybackUrl, renderClip, getClipDownloadUrl } from '../../../lib/api/clips'
 import { Button } from '../../../components/ui/button'
+import { ViralityScore } from '../../../components/clip/ViralityScore'
 import { Download, Film, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -83,9 +84,19 @@ function ClipDetailPage() {
         </div>
       </div>
       <h1 className="text-2xl font-bold text-[var(--app-fg)]">{clip.name}</h1>
-      <p className="text-caption text-[var(--app-fg-muted)]">
-        {clip.duration_seconds != null ? `${Math.round(clip.duration_seconds)}s` : '—'} · {clip.aspect_ratio} · {clip.status}
-      </p>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-[var(--app-fg-muted)]">
+        <span>{clip.duration_seconds != null ? `${Math.round(clip.duration_seconds)}s` : '—'}</span>
+        <span aria-hidden>·</span>
+        <span>{clip.aspect_ratio}</span>
+        <span aria-hidden>·</span>
+        <span>{clip.status}</span>
+        {clip.virality_score != null && (
+          <>
+            <span aria-hidden>·</span>
+            <ViralityScore score={clip.virality_score} />
+          </>
+        )}
+      </div>
       {hasVideo && playback?.url && (
         <div className="rounded-xl overflow-hidden border border-[var(--app-border)] bg-[var(--app-bg)] max-w-2xl">
           <video
