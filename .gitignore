@@ -1,13 +1,16 @@
-node_modules
+# OS
 .DS_Store
-dist
-dist-ssr
-*.local
-count.txt
+
+# Env and secrets (keep .env.example)
 .env
-.nitro
-.tanstack
-.wrangler
-.output
-.vinxi
-todos.json
+*.local
+
+# Backend build / runtime
+backend/bin/
+backend/tmp/
+
+# Large media / samples
+samples/
+
+# Frontend (supplements frontend/.gitignore at root level)
+node_modules/

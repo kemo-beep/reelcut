@@ -1,0 +1,14 @@
+DROP TABLE IF EXISTS subscriptions;
+DROP TABLE IF EXISTS usage_logs;
+DROP TABLE IF EXISTS templates;
+DROP TABLE IF EXISTS processing_jobs;
+DROP TABLE IF EXISTS clip_styles;
+DROP TABLE IF EXISTS clips;
+DROP TABLE IF EXISTS video_analysis;
+DROP TABLE IF EXISTS transcript_words;
+DROP TABLE IF EXISTS transcript_segments;
+DROP TABLE IF EXISTS transcriptions;
+DROP TABLE IF EXISTS videos;
+DROP TABLE IF EXISTS projects;
+DROP TABLE IF EXISTS user_sessions;
+DROP TABLE IF EXISTS users;
