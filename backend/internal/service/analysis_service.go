@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"log/slog"
+	"os"
 
 	"reelcut/internal/ai"
 	"reelcut/internal/domain"
@@ -54,6 +56,16 @@ func (s *AnalysisService) SuggestClips(ctx context.Context, videoID string, minD
 	segments, _ := s.segmentRepo.GetByTranscriptionID(ctx, t.ID.String())
 	for _, seg := range segments {
 		t.Segments = append(t.Segments, *seg)
+	}
+	if os.Getenv("GEMINI_API_KEY") != "" {
+		suggestions, geminiErr := ai.SuggestClipsWithGemini(ctx, t, minDur, maxDur, maxSuggestions)
+		if geminiErr != nil {
+			slog.Warn("gemini suggest clips failed, falling back to rule-based", "err", geminiErr)
+			return ai.SuggestClips(t, minDur, maxDur, maxSuggestions), nil
+		}
+		if len(suggestions) > 0 {
+			return suggestions, nil
+		}
 	}
 	return ai.SuggestClips(t, minDur, maxDur, maxSuggestions), nil
 }

@@ -14,10 +14,11 @@ import (
 
 type AnalysisHandler struct {
 	analysisSvc *service.AnalysisService
+	videoSvc    *service.VideoService
 }
 
-func NewAnalysisHandler(analysisSvc *service.AnalysisService) *AnalysisHandler {
-	return &AnalysisHandler{analysisSvc: analysisSvc}
+func NewAnalysisHandler(analysisSvc *service.AnalysisService, videoSvc *service.VideoService) *AnalysisHandler {
+	return &AnalysisHandler{analysisSvc: analysisSvc, videoSvc: videoSvc}
 }
 
 // Analyze godoc
@@ -30,13 +31,18 @@ func NewAnalysisHandler(analysisSvc *service.AnalysisService) *AnalysisHandler {
 // @Failure	404	{object}	utils.ErrorResponse
 // @Router		/api/v1/analysis/videos/{videoId} [post]
 func (h *AnalysisHandler) Analyze(c *gin.Context) {
-	if middleware.GetUserID(c) == "" {
+	userID := middleware.GetUserID(c)
+	if userID == "" {
 		utils.Unauthorized(c, "")
 		return
 	}
 	videoIDStr := c.Param("videoId")
 	videoID, err := uuid.Parse(videoIDStr)
 	if err != nil {
+		utils.NotFound(c, "Video not found")
+		return
+	}
+	if _, err := h.videoSvc.GetByID(c.Request.Context(), videoIDStr, userID); err != nil {
 		utils.NotFound(c, "Video not found")
 		return
 	}
@@ -57,11 +63,16 @@ func (h *AnalysisHandler) Analyze(c *gin.Context) {
 // @Failure	404	{object}	utils.ErrorResponse
 // @Router		/api/v1/analysis/videos/{videoId} [get]
 func (h *AnalysisHandler) GetByVideoID(c *gin.Context) {
-	if middleware.GetUserID(c) == "" {
+	userID := middleware.GetUserID(c)
+	if userID == "" {
 		utils.Unauthorized(c, "")
 		return
 	}
 	videoID := c.Param("videoId")
+	if _, err := h.videoSvc.GetByID(c.Request.Context(), videoID, userID); err != nil {
+		utils.NotFound(c, "Video not found")
+		return
+	}
 	a, err := h.analysisSvc.GetByVideoID(c.Request.Context(), videoID)
 	if err != nil || a == nil {
 		utils.NotFound(c, "Analysis not found")
@@ -82,22 +93,27 @@ func (h *AnalysisHandler) GetByVideoID(c *gin.Context) {
 // @Failure	404	{object}	utils.ErrorResponse
 // @Router		/api/v1/analysis/videos/{videoId}/suggest-clips [post]
 func (h *AnalysisHandler) SuggestClips(c *gin.Context) {
-	if middleware.GetUserID(c) == "" {
+	userID := middleware.GetUserID(c)
+	if userID == "" {
 		utils.Unauthorized(c, "")
 		return
 	}
 	videoID := c.Param("videoId")
+	if _, err := h.videoSvc.GetByID(c.Request.Context(), videoID, userID); err != nil {
+		utils.NotFound(c, "Video not found")
+		return
+	}
 	var body struct {
 		MinDuration    float64 `json:"min_duration"`
 		MaxDuration    float64 `json:"max_duration"`
 		MaxSuggestions int    `json:"max_suggestions"`
 	}
-	body.MinDuration = 30
-	body.MaxDuration = 90
-	body.MaxSuggestions = 10
+	body.MinDuration = 7
+	body.MaxDuration = 60
+	body.MaxSuggestions = 20
 	c.ShouldBindJSON(&body)
 	if body.MaxSuggestions <= 0 {
-		body.MaxSuggestions = 10
+		body.MaxSuggestions = 20
 	}
 	suggestions, err := h.analysisSvc.SuggestClips(c.Request.Context(), videoID, body.MinDuration, body.MaxDuration, body.MaxSuggestions)
 	if err != nil {

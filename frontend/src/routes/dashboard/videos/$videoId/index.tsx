@@ -1,12 +1,14 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
-import { getVideo, getPlaybackUrl, deleteVideo } from '../../../../lib/api/videos'
+import { getVideo, getPlaybackUrl, deleteVideo, triggerAutoCut } from '../../../../lib/api/videos'
 import { createTranscription, getTranscriptionByVideoId } from '../../../../lib/api/transcriptions'
 import { analyzeVideo, suggestClips } from '../../../../lib/api/analysis'
+import { listClips, updateClip } from '../../../../lib/api/clips'
 import { Button } from '../../../../components/ui/button'
 import { VideoPlayer } from '../../../../components/video/VideoPlayer'
 import { TranscriptViewer } from '../../../../components/transcription/TranscriptViewer'
+import { ClipTimeline, type ClipTimelineSegment } from '../../../../components/clip/ClipTimeline'
 import { Trash2, Sparkles, Loader2, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 import { ApiError } from '../../../../types'
@@ -42,6 +44,28 @@ function VideoDetailPage() {
     refetchOnWindowFocus: true,
     refetchInterval: (query) =>
       query.state.data?.transcription?.status === 'processing' ? 2500 : false,
+  })
+  const { data: clipsData } = useQuery({
+    queryKey: ['clips', { video_id: videoId }],
+    queryFn: () => listClips({ video_id: videoId, per_page: 100 }),
+    enabled: !!data?.video,
+  })
+  const updateClipMut = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: { start_time: number; end_time: number } }) =>
+      updateClip(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clips', { video_id: videoId }] })
+      toast.success('Clip updated')
+    },
+    onError: () => toast.error('Failed to update clip'),
+  })
+  const autoCutMut = useMutation({
+    mutationFn: () => triggerAutoCut(videoId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clips', { video_id: videoId }] })
+      toast.success('Auto-cut started; clips will appear shortly.')
+    },
+    onError: () => toast.error('Failed to start auto-cut'),
   })
   const autoStartedRef = useRef(false)
   const transcriptionLoaded = transData !== undefined
@@ -123,6 +147,19 @@ function VideoDetailPage() {
   const transLoadingState = transLoading && transData === undefined
   const noTranscriptionYet = !transLoadingState && transData && transcription === null
   const videoReady = video.status === 'ready'
+  const clips = clipsData?.data?.clips ?? []
+  const durationSec = video.duration_seconds ?? 0
+  const timelineSegments: ClipTimelineSegment[] = clips.map((c) => ({
+    id: c.id,
+    start_time: c.start_time,
+    end_time: c.end_time,
+    virality_score: c.virality_score ?? undefined,
+    isSuggestion: false,
+  }))
+  const handleSegmentChange = (id: string, payload: { start_time: number; end_time: number }) => {
+    if (id.startsWith('suggestion-')) return
+    updateClipMut.mutate({ id, payload })
+  }
 
   return (
     <div className="space-y-6">
@@ -176,6 +213,16 @@ function VideoDetailPage() {
             </div>
           )}
 
+          {durationSec > 0 && (
+            <ClipTimeline
+              duration={durationSec}
+              segments={timelineSegments}
+              currentTime={currentTime}
+              onSeek={(t) => playerRef.current?.seek(t)}
+              onSegmentChange={handleSegmentChange}
+            />
+          )}
+
           <div className="flex flex-wrap gap-3">
             <Button
               size="sm"
@@ -195,6 +242,24 @@ function VideoDetailPage() {
                 </>
               )}
             </Button>
+            {transcription?.status === 'completed' && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-[var(--app-border)]"
+                onClick={() => autoCutMut.mutate()}
+                disabled={autoCutMut.isPending || video.status !== 'ready'}
+              >
+                {autoCutMut.isPending ? (
+                  <>
+                    <Loader2 size={16} className="mr-1 animate-spin" />
+                    Starting…
+                  </>
+                ) : (
+                  'Auto cut'
+                )}
+              </Button>
+            )}
             <Link
               to="/dashboard/videos/$videoId/clips"
               params={{ videoId: video.id }}

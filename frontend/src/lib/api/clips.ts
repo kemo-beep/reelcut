@@ -36,14 +36,20 @@ export async function listClips(params?: ListClipsParams): Promise<ListClipsResp
 }
 
 export async function createClip(input: CreateClipInput): Promise<{ clip: Clip }> {
+  const { from_suggestion, ...rest } = input
   return post('/api/v1/clips', {
-    ...input,
-    from_suggestion: input.from_suggestion ?? false,
+    ...rest,
+    // Backend expects string; sending boolean causes bind failure
+    from_suggestion: from_suggestion ? 'true' : '',
   })
 }
 
 export async function getClip(id: string): Promise<{ clip: Clip }> {
   return get(`/api/v1/clips/${id}`)
+}
+
+export async function getClipPlaybackUrl(id: string): Promise<{ url: string | null }> {
+  return get(`/api/v1/clips/${id}/playback-url`)
 }
 
 export async function updateClip(

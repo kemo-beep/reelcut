@@ -14,11 +14,12 @@ import (
 )
 
 type ClipHandler struct {
-	clipSvc *service.ClipService
+	clipSvc  *service.ClipService
+	videoSvc *service.VideoService
 }
 
-func NewClipHandler(clipSvc *service.ClipService) *ClipHandler {
-	return &ClipHandler{clipSvc: clipSvc}
+func NewClipHandler(clipSvc *service.ClipService, videoSvc *service.VideoService) *ClipHandler {
+	return &ClipHandler{clipSvc: clipSvc, videoSvc: videoSvc}
 }
 
 // Create godoc
@@ -121,6 +122,39 @@ func (h *ClipHandler) GetByID(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"clip": clip})
+}
+
+// GetPlaybackURL godoc
+// @Summary		Get presigned URL for clip video playback (cut file)
+// @Tags			clips
+// @Produce		json
+// @Security	BearerAuth
+// @Param		id	path		string	true	"Clip ID"
+// @Success	200	{object}	object	"url"
+// @Failure	404	{object}	utils.ErrorResponse
+// @Router		/api/v1/clips/{id}/playback-url [get]
+func (h *ClipHandler) GetPlaybackURL(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		utils.Unauthorized(c, "")
+		return
+	}
+	clipID := c.Param("id")
+	clip, err := h.clipSvc.GetByID(c.Request.Context(), clipID, userID)
+	if err != nil {
+		utils.NotFound(c, "Clip not found")
+		return
+	}
+	if clip.StoragePath == nil || *clip.StoragePath == "" {
+		c.JSON(http.StatusOK, gin.H{"url": nil})
+		return
+	}
+	url, err := h.videoSvc.GetPresignedDownloadURL(c.Request.Context(), *clip.StoragePath, 3600)
+	if err != nil {
+		utils.Internal(c, "")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"url": url})
 }
 
 // Update godoc

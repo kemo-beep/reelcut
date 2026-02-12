@@ -74,6 +74,7 @@ func SetupRoutes(r *gin.Engine, h *handler.Handler, m *middleware.AuthMiddleware
 			// More specific GET routes first so they are not matched by /:id
 			videos.GET("/:id/metadata", h.Video.GetMetadata)
 			videos.GET("/:id/playback-url", h.Video.GetPlaybackURL)
+			videos.POST("/:id/auto-cut", h.Video.AutoCut)
 			videos.GET("/:id", h.Video.GetByID)
 			videos.DELETE("/:id", h.Video.Delete)
 		}
@@ -98,6 +99,7 @@ func SetupRoutes(r *gin.Engine, h *handler.Handler, m *middleware.AuthMiddleware
 		{
 			clips.POST("", h.Clip.Create)
 			clips.GET("", h.Clip.List)
+			clips.GET("/:id/playback-url", h.Clip.GetPlaybackURL)
 			clips.GET("/:id", h.Clip.GetByID)
 			clips.PUT("/:id", h.Clip.Update)
 			clips.DELETE("/:id", h.Clip.Delete)

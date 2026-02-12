@@ -67,3 +67,7 @@ export function getThumbnailUrl(id: string, baseUrl?: string): string {
 export async function getPlaybackUrl(id: string): Promise<{ url: string | null; status?: string }> {
   return get(`/api/v1/videos/${id}/playback-url`)
 }
+
+export async function triggerAutoCut(videoId: string): Promise<{ message: string }> {
+  return post(`/api/v1/videos/${videoId}/auto-cut`)
+}

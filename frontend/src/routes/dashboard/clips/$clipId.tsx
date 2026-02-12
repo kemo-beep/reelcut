@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getClip, renderClip, getClipDownloadUrl } from '../../../lib/api/clips'
+import { getClip, getClipPlaybackUrl, renderClip, getClipDownloadUrl } from '../../../lib/api/clips'
 import { Button } from '../../../components/ui/button'
 import { Download, Film, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
@@ -15,6 +15,12 @@ function ClipDetailPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['clip', clipId],
     queryFn: () => getClip(clipId),
+  })
+  const hasVideo = data?.clip?.storage_path != null && data.clip.storage_path !== ''
+  const { data: playback } = useQuery({
+    queryKey: ['clip-playback', clipId],
+    queryFn: () => getClipPlaybackUrl(clipId),
+    enabled: hasVideo,
   })
   const renderMutation = useMutation({
     mutationFn: () => renderClip(clipId),
@@ -80,6 +86,17 @@ function ClipDetailPage() {
       <p className="text-caption text-[var(--app-fg-muted)]">
         {clip.duration_seconds != null ? `${Math.round(clip.duration_seconds)}s` : '—'} · {clip.aspect_ratio} · {clip.status}
       </p>
+      {hasVideo && playback?.url && (
+        <div className="rounded-xl overflow-hidden border border-[var(--app-border)] bg-[var(--app-bg)] max-w-2xl">
+          <video
+            src={playback.url}
+            controls
+            className="w-full"
+            preload="auto"
+            aria-label={`Clip: ${clip.name}`}
+          />
+        </div>
+      )}
     </div>
   )
 }

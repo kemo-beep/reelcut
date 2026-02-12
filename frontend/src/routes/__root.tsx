@@ -40,6 +40,8 @@ interface MyRouterContext {
 }
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
+  // Disable SSR app-wide to avoid 500 "HTTPError" during server render (e.g. Cloudflare/workerd or backend unreachable).
+  ssr: false,
   head: () => ({
     meta: [
       {

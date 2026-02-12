@@ -11,6 +11,7 @@ import (
 
 	"reelcut/internal/domain"
 	"reelcut/internal/middleware"
+	"reelcut/internal/queue"
 	"reelcut/internal/service"
 	"reelcut/internal/utils"
 
@@ -21,17 +22,25 @@ import (
 const thumbnailTokenExpiry = 5 * time.Minute
 
 type VideoHandler struct {
-	videoSvc       *service.VideoService
-	jwtSecret      string
-	s3RedirectHost string // allowed host for download-shared-object redirects (e.g. localhost:9002)
+	videoSvc         *service.VideoService
+	transcriptionSvc  *service.TranscriptionService
+	queueClient      *queue.QueueClient
+	jwtSecret        string
+	s3RedirectHost   string // allowed host for download-shared-object redirects (e.g. localhost:9002)
 }
 
-func NewVideoHandler(videoSvc *service.VideoService, jwtSecret string, s3Endpoint string) *VideoHandler {
+func NewVideoHandler(videoSvc *service.VideoService, transcriptionSvc *service.TranscriptionService, queueClient *queue.QueueClient, jwtSecret string, s3Endpoint string) *VideoHandler {
 	redirectHost := ""
 	if u, err := url.Parse(s3Endpoint); err == nil {
 		redirectHost = u.Host
 	}
-	return &VideoHandler{videoSvc: videoSvc, jwtSecret: jwtSecret, s3RedirectHost: redirectHost}
+	return &VideoHandler{
+		videoSvc:        videoSvc,
+		transcriptionSvc: transcriptionSvc,
+		queueClient:     queueClient,
+		jwtSecret:       jwtSecret,
+		s3RedirectHost:  redirectHost,
+	}
 }
 
 // Upload godoc
@@ -356,6 +365,48 @@ func (h *VideoHandler) GetByID(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"video": v})
+}
+
+// AutoCut godoc
+// @Summary		Queue auto-cut job to create clips from transcription
+// @Tags			videos
+// @Produce		json
+// @Security	BearerAuth
+// @Param		id	path		string	true	"Video ID"
+// @Success	202	{object}	object	"Auto-cut job queued"
+// @Failure	404	{object}	utils.ErrorResponse
+// @Router		/api/v1/videos/{id}/auto-cut [post]
+func (h *VideoHandler) AutoCut(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		utils.Unauthorized(c, "")
+		return
+	}
+	videoID := c.Param("id")
+	if _, err := uuid.Parse(videoID); err != nil {
+		utils.NotFound(c, "Video not found")
+		return
+	}
+	_, err := h.videoSvc.GetByID(c.Request.Context(), videoID, userID)
+	if err != nil {
+		utils.NotFound(c, "Video not found")
+		return
+	}
+	t, err := h.transcriptionSvc.GetByVideoID(c.Request.Context(), videoID)
+	if err != nil || t == nil || t.Status != "completed" {
+		utils.Error(c, http.StatusUnprocessableEntity, "TRANSCRIPTION_REQUIRED", "Video must have a completed transcription to auto-cut", nil)
+		return
+	}
+	if h.queueClient == nil {
+		utils.Internal(c, "")
+		return
+	}
+	vid, _ := uuid.Parse(videoID)
+	if err := h.queueClient.EnqueueAutoCut(vid); err != nil {
+		utils.Internal(c, "")
+		return
+	}
+	c.JSON(http.StatusAccepted, gin.H{"message": "Auto-cut job queued"})
 }
 
 // Delete godoc

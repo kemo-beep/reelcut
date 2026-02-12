@@ -15,6 +15,7 @@ const (
 	TypeTranscription   = "transcription"
 	TypeAnalysis        = "analysis"
 	TypeRender          = "render"
+	TypeAutoCut         = "auto_cut"
 )
 
 type VideoMetadataPayload struct {
@@ -42,6 +43,10 @@ type AnalysisPayload struct {
 type RenderPayload struct {
 	ClipID string `json:"clip_id"`
 	JobID  string `json:"job_id"`
+}
+
+type AutoCutPayload struct {
+	VideoID string `json:"video_id"`
 }
 
 func NewVideoMetadataTask(videoID uuid.UUID) (*asynq.Task, error) {
@@ -92,6 +97,14 @@ func NewRenderTask(clipID, jobID uuid.UUID) (*asynq.Task, error) {
 	return asynq.NewTask(TypeRender, payload), nil
 }
 
+func NewAutoCutTask(videoID uuid.UUID) (*asynq.Task, error) {
+	payload, err := json.Marshal(AutoCutPayload{VideoID: videoID.String()})
+	if err != nil {
+		return nil, err
+	}
+	return asynq.NewTask(TypeAutoCut, payload), nil
+}
+
 func ParseVideoMetadataPayload(b []byte) (VideoMetadataPayload, error) {
 	var p VideoMetadataPayload
 	err := json.Unmarshal(b, &p)
@@ -124,6 +137,12 @@ func ParseAnalysisPayload(b []byte) (AnalysisPayload, error) {
 
 func ParseRenderPayload(b []byte) (RenderPayload, error) {
 	var p RenderPayload
+	err := json.Unmarshal(b, &p)
+	return p, err
+}
+
+func ParseAutoCutPayload(b []byte) (AutoCutPayload, error) {
+	var p AutoCutPayload
 	err := json.Unmarshal(b, &p)
 	return p, err
 }
@@ -188,6 +207,15 @@ func (q *QueueClient) EnqueueAnalysis(videoID uuid.UUID) error {
 
 func (q *QueueClient) EnqueueRender(clipID, jobID uuid.UUID) error {
 	task, err := NewRenderTask(clipID, jobID)
+	if err != nil {
+		return err
+	}
+	_, err = q.client.Enqueue(task)
+	return err
+}
+
+func (q *QueueClient) EnqueueAutoCut(videoID uuid.UUID) error {
+	task, err := NewAutoCutTask(videoID)
 	if err != nil {
 		return err
 	}

@@ -24,6 +24,7 @@ type TranscriptionWorker struct {
 	videoRepo         repository.VideoRepository
 	storage           StorageDownloader
 	transcriber       ai.Transcriber
+	queue             *queue.QueueClient
 }
 
 type StorageDownloader interface {
@@ -37,6 +38,7 @@ func NewTranscriptionWorker(
 	videoRepo repository.VideoRepository,
 	storage StorageDownloader,
 	transcriber ai.Transcriber,
+	queue *queue.QueueClient,
 ) *TranscriptionWorker {
 	return &TranscriptionWorker{
 		transcriptionRepo: transcriptionRepo,
@@ -45,6 +47,7 @@ func NewTranscriptionWorker(
 		videoRepo:        videoRepo,
 		storage:          storage,
 		transcriber:      transcriber,
+		queue:            queue,
 	}
 }
 
@@ -170,6 +173,11 @@ func (w *TranscriptionWorker) Handle(ctx context.Context, t *asynq.Task) error {
 	tr.Status = "completed"
 	if err := w.transcriptionRepo.Update(ctx, tr); err != nil {
 		return err
+	}
+	if w.queue != nil {
+		if envVal := os.Getenv("AUTO_CUT_AFTER_TRANSCRIPTION"); envVal == "1" || envVal == "true" || envVal == "yes" {
+			_ = w.queue.EnqueueAutoCut(v.ID)
+		}
 	}
 	return nil
 }

@@ -174,10 +174,12 @@ func main() {
 	mux := asynq.NewServeMux()
 	videoWorker := worker.NewVideoWorker(videoRepo, jobRepo, storageSvc, jobNotifier)
 	videoWorker.Register(mux)
-	transcriptionWorker := worker.NewTranscriptionWorker(transcriptionRepo, segmentRepo, wordRepo, videoRepo, storageSvc, transcriber)
+	transcriptionWorker := worker.NewTranscriptionWorker(transcriptionRepo, segmentRepo, wordRepo, videoRepo, storageSvc, transcriber, queueClient)
 	transcriptionWorker.Register(mux)
 	analysisWorker := worker.NewAnalysisWorker(videoAnalysisRepo, videoRepo, transcriptionRepo, segmentRepo, storageSvc)
 	analysisWorker.Register(mux)
+	autocutWorker := worker.NewAutoCutWorker(videoRepo, clipRepo, analysisSvc, clipSvc, storageSvc, transcriptionRepo, segmentRepo)
+	autocutWorker.Register(mux)
 	renderingWorker := worker.NewRenderingWorker(renderingSvc, clipRepo, jobRepo, jobNotifier)
 	renderingWorker.Register(mux)
 	go func() {
@@ -191,10 +193,10 @@ func main() {
 		Auth:         handler.NewAuthHandler(authSvc),
 		User:         handler.NewUserHandler(userRepo, usageLogRepo, authSvc, userSvc),
 		Project:      handler.NewProjectHandler(projectRepo),
-		Video:        handler.NewVideoHandler(videoSvc, cfg.JWT.Secret, cfg.S3.Endpoint),
+		Video:        handler.NewVideoHandler(videoSvc, transcriptionSvc, queueClient, cfg.JWT.Secret, cfg.S3.Endpoint),
 		Transcription: handler.NewTranscriptionHandler(transcriptionSvc),
-		Analysis:     handler.NewAnalysisHandler(analysisSvc),
-		Clip:         handler.NewClipHandler(clipSvc),
+		Analysis:     handler.NewAnalysisHandler(analysisSvc, videoSvc),
+		Clip:         handler.NewClipHandler(clipSvc, videoSvc),
 		Template:     handler.NewTemplateHandler(templateSvc),
 		Job:          handler.NewJobHandler(jobRepo),
 		Subscription: handler.NewSubscriptionHandler(subscriptionSvc),
