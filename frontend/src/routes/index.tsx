@@ -1,6 +1,11 @@
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import { useAuthStore } from '../stores/authStore'
+import { Hero } from '../components/landing/Hero'
+import { Features } from '../components/landing/Features'
+import { HowItWorks } from '../components/landing/HowItWorks'
+import { Testimonials } from '../components/landing/Testimonials'
+import { Footer } from '../components/landing/Footer'
 
 export const Route = createFileRoute('/')({ component: HomePage })
 
@@ -26,37 +31,34 @@ function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--app-bg)]">
-      <section className="relative overflow-hidden px-6 py-24 text-center md:py-32">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,var(--app-accent-muted),transparent)]" />
-        <div className="relative mx-auto max-w-4xl">
-          <h1 className="text-display mb-6 text-[var(--app-fg)] md:mb-8">
-            <span className="bg-gradient-to-r from-[var(--app-accent)] to-cyan-300 bg-clip-text text-transparent">
-              Reelcut
-            </span>
-          </h1>
-          <p className="text-body mx-auto mb-10 max-w-2xl text-[var(--app-fg-muted)] md:mb-12 md:text-lg">
-            AI-powered video clip generation. Turn long-form videos into engaging short clips for social media.
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            <Link
-              to="/auth/register"
-              className="inline-flex items-center justify-center rounded-lg bg-[var(--app-accent)] px-8 py-3.5 text-base font-semibold text-[#0a0a0b] shadow-card transition-[var(--motion-duration-fast)] hover:bg-[var(--app-accent-hover)] hover:shadow-lg focus-visible:outline focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-bg)]"
+    <div className="min-h-screen bg-[var(--app-bg)] selection:bg-[var(--app-accent)] selection:text-white">
+      {/* Main Content Wrapper for Footer Reveal Effect */}
+      <div className="relative z-10 bg-[var(--app-bg)] mb-[400px] shadow-2xl">
+        <Hero />
+        <Features />
+        <HowItWorks />
+        <Testimonials />
+
+        {/* CTA Section */}
+        <section className="py-32 text-center bg-[#0a0a0b] text-white">
+          <div className="mx-auto max-w-4xl px-6">
+            <h2 className="text-display mb-8 text-5xl font-bold tracking-tight md:text-7xl">
+              Ready to go viral?
+            </h2>
+            <p className="text-xl text-gray-400 mx-auto mb-12 max-w-2xl">
+              Join the automated video revolution and start creating content that converts.
+            </p>
+            <a
+              href="/auth/register"
+              className="inline-flex items-center justify-center rounded-full bg-white px-10 py-5 text-xl font-bold text-black shadow-lg transition-transform hover:scale-105 hover:bg-gray-100"
             >
-              Create account
-            </Link>
-            <Link
-              to="/auth/login"
-              className="inline-flex items-center justify-center rounded-lg border border-[var(--app-border-strong)] bg-[var(--app-bg-raised)] px-8 py-3.5 text-base font-medium text-[var(--app-fg)] transition-[var(--motion-duration-fast)] hover:bg-[var(--app-bg-overlay)] focus-visible:outline focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-bg)]"
-            >
-              Sign in
-            </Link>
+              Get Started for Free
+            </a>
           </div>
-          <p className="text-caption mt-12 text-[var(--app-fg-subtle)]">
-            Trusted by creators and teams to scale short-form content.
-          </p>
-        </div>
-      </section>
+        </section>
+      </div>
+
+      <Footer />
     </div>
   )
 }
