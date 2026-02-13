@@ -81,9 +81,11 @@ func SetupRoutes(r *gin.Engine, h *handler.Handler, m *middleware.AuthMiddleware
 
 		transcriptions := protected.Group("/transcriptions")
 		{
-			// More specific routes first so GET .../videos/:videoId is matched before GET /:id (avoids 404 when no transcription).
+			// More specific routes first so GET .../videos/:videoId/list and .../videos/:videoId are matched before GET /:id.
 			transcriptions.POST("/videos/:videoId", h.Transcription.Create)
+			transcriptions.GET("/videos/:videoId/list", h.Transcription.ListByVideoID)
 			transcriptions.GET("/videos/:videoId", h.Transcription.GetByVideoID)
+			transcriptions.POST("/:id/translate", h.Transcription.Translate)
 			transcriptions.GET("/:id", h.Transcription.GetByID)
 			transcriptions.PUT("/:id/segments/:segmentId", h.Transcription.UpdateSegment)
 		}
@@ -110,6 +112,15 @@ func SetupRoutes(r *gin.Engine, h *handler.Handler, m *middleware.AuthMiddleware
 			clips.GET("/:id/status", h.Clip.GetRenderStatus)
 			clips.GET("/:id/download", h.Clip.Download)
 			clips.POST("/:id/duplicate", h.Clip.Duplicate)
+			clips.GET("/:id/broll", h.Clip.ListBrollSegments)
+			clips.POST("/:id/broll", h.Clip.AddBrollSegment)
+			clips.DELETE("/:id/broll/:segmentId", h.Clip.DeleteBrollSegment)
+		}
+
+		broll := protected.Group("/broll")
+		{
+			broll.POST("/assets", h.Broll.CreateAsset)
+			broll.GET("/assets", h.Broll.ListAssets)
 		}
 
 		clipStyles := protected.Group("/clips/:id/style")
@@ -138,6 +149,12 @@ func SetupRoutes(r *gin.Engine, h *handler.Handler, m *middleware.AuthMiddleware
 		webhooks := protected.Group("/webhooks")
 		{
 			webhooks.POST("/processing-complete", h.Webhook.ProcessingComplete)
+		}
+
+		config := protected.Group("/config")
+		{
+			config.GET("/caption-fonts", h.Config.GetCaptionFonts)
+			config.GET("/export-presets", h.Config.GetExportPresets)
 		}
 	}
 

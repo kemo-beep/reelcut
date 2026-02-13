@@ -155,7 +155,29 @@ func ResizeCrop(ctx context.Context, inputPath, outputPath, aspectRatio string) 
 	return nil
 }
 
-// BurnSubtitles burns SRT file into video.
+// ResizeCropToSize scales to cover and center-crops to exact width x height.
+// Use for platform presets (e.g. 1080x1920 for TikTok/Reels).
+func ResizeCropToSize(ctx context.Context, inputPath, outputPath string, width, height int) error {
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+		return err
+	}
+	// scale to cover (force_original_aspect_ratio=increase) then center crop
+	vf := fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d:(iw-%d)/2:(ih-%d)/2",
+		width, height, width, height, width, height)
+	args := []string{
+		"-y", "-i", inputPath,
+		"-vf", vf,
+		"-c:a", "copy",
+		outputPath,
+	}
+	out, err := RunFFmpeg(ctx, args...)
+	if err != nil {
+		return fmt.Errorf("ffmpeg resize to size: %w (output: %s)", err, string(out))
+	}
+	return nil
+}
+
+// BurnSubtitles burns SRT file into video (plain styling).
 func BurnSubtitles(ctx context.Context, inputPath, srtPath, outputPath string) error {
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
 		return err
@@ -175,6 +197,30 @@ func BurnSubtitles(ctx context.Context, inputPath, srtPath, outputPath string) e
 	out, err := RunFFmpeg(ctx, args...)
 	if err != nil {
 		return fmt.Errorf("ffmpeg subtitles: %w (output: %s)", err, string(out))
+	}
+	return nil
+}
+
+// BurnASS burns an ASS subtitle file into video with full style (font, color, position).
+// ASS supports styled captions; use this when clip_styles caption options are set.
+func BurnASS(ctx context.Context, inputPath, assPath, outputPath string) error {
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+		return err
+	}
+	escaped := assPath
+	if filepath.Separator == '\\' {
+		escaped = strings.ReplaceAll(assPath, "\\", "\\\\")
+	}
+	escaped = strings.ReplaceAll(escaped, ":", "\\:")
+	args := []string{
+		"-y", "-i", inputPath,
+		"-vf", "ass=" + escaped,
+		"-c:a", "copy",
+		outputPath,
+	}
+	out, err := RunFFmpeg(ctx, args...)
+	if err != nil {
+		return fmt.Errorf("ffmpeg ass: %w (output: %s)", err, string(out))
 	}
 	return nil
 }
@@ -206,6 +252,38 @@ func OverlayImage(ctx context.Context, inputPath, imagePath, outputPath, positio
 	out, err := RunFFmpeg(ctx, args...)
 	if err != nil {
 		return fmt.Errorf("ffmpeg overlay: %w (output: %s)", err, string(out))
+	}
+	return nil
+}
+
+// OverlayVideo overlays a B-roll video on the main video between startTime and endTime (clip-relative seconds).
+// scale is the factor for the overlay size (e.g. 0.5 = half width); opacity is 0-1.
+func OverlayVideo(ctx context.Context, mainPath, brollPath, outputPath string, startTime, endTime, scale, opacity float64) error {
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+		return err
+	}
+	if scale <= 0 {
+		scale = 0.5
+	}
+	if opacity <= 0 {
+		opacity = 1
+	}
+	// [1:v] scale and opacity -> [ov]; [0:v][ov] overlay with enable=between(t,start,end), centered
+	// Escape single quotes in filter for enable=
+	enable := fmt.Sprintf("between(t\\,%.3f\\,%.3f)", startTime, endTime)
+	scaleStr := fmt.Sprintf("scale=iw*%.2f:-1", scale)
+	alphaStr := fmt.Sprintf("format=rgba,colorchannelmixer=aa=%.2f", opacity)
+	overlayPos := "(main_w-overlay_w)/2:(main_h-overlay_h)/2"
+	filter := "[1:v]" + scaleStr + "," + alphaStr + "[ov];[0:v][ov]overlay=" + overlayPos + ":enable='" + enable + "'"
+	args := []string{
+		"-y", "-i", mainPath, "-i", brollPath,
+		"-filter_complex", filter,
+		"-c:a", "copy",
+		outputPath,
+	}
+	out, err := RunFFmpeg(ctx, args...)
+	if err != nil {
+		return fmt.Errorf("ffmpeg overlay video: %w (output: %s)", err, string(out))
 	}
 	return nil
 }

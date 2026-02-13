@@ -18,10 +18,16 @@ export async function getTranscription(id: string): Promise<{ transcription: Tra
   return get(`/api/v1/transcriptions/${id}`)
 }
 
-/** Get transcription by video ID. Treats 404 as "no transcription" and returns null so the UI can show empty state. */
-export async function getTranscriptionByVideoId(videoId: string): Promise<{ transcription: Transcription | null }> {
+/** Get transcription by video ID. Optional language for multi-language (ISO 639-1). Treats 404 as "no transcription" and returns null. */
+export async function getTranscriptionByVideoId(
+  videoId: string,
+  opts?: { language?: string }
+): Promise<{ transcription: Transcription | null }> {
   try {
-    return await get<{ transcription: Transcription | null }>(`/api/v1/transcriptions/videos/${videoId}`)
+    const url = opts?.language
+      ? `/api/v1/transcriptions/videos/${videoId}?language=${encodeURIComponent(opts.language)}`
+      : `/api/v1/transcriptions/videos/${videoId}`
+    return await get<{ transcription: Transcription | null }>(url)
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) {
       return { transcription: null }
@@ -30,10 +36,23 @@ export async function getTranscriptionByVideoId(videoId: string): Promise<{ tran
   }
 }
 
+/** List all completed transcriptions for a video (for caption language selection). */
+export async function listTranscriptionsByVideo(videoId: string): Promise<{ transcriptions: Transcription[] }> {
+  return get(`/api/v1/transcriptions/videos/${videoId}/list`)
+}
+
+/** Translate a completed transcription to another language (same timestamps). */
+export async function translateTranscription(
+  transcriptionId: string,
+  body: { target_language: string }
+): Promise<{ transcription: Transcription }> {
+  return post(`/api/v1/transcriptions/${transcriptionId}/translate`, body)
+}
+
 export async function updateSegment(
   transcriptionId: string,
   segmentId: string,
-  body: Partial<Pick<TranscriptSegment, 'text'>>
+  body: Partial<Pick<TranscriptSegment, 'text'> & { start_time?: number; end_time?: number }>
 ): Promise<unknown> {
   return put(`/api/v1/transcriptions/${transcriptionId}/segments/${segmentId}`, body)
 }

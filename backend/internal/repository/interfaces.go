@@ -44,6 +44,8 @@ type TranscriptionRepository interface {
 	Create(ctx context.Context, t *domain.Transcription) error
 	GetByID(ctx context.Context, id string) (*domain.Transcription, error)
 	GetByVideoID(ctx context.Context, videoID string) (*domain.Transcription, error)
+	GetByVideoIDAndLanguage(ctx context.Context, videoID, language string) (*domain.Transcription, error)
+	ListCompletedByVideoID(ctx context.Context, videoID string) ([]*domain.Transcription, error)
 	Update(ctx context.Context, t *domain.Transcription) error
 	CreateWithSegments(ctx context.Context, t *domain.Transcription, segments []*domain.TranscriptSegment) error
 }
@@ -105,4 +107,20 @@ type SubscriptionRepository interface {
 	GetByUserID(ctx context.Context, userID string) (*domain.Subscription, error)
 	GetByStripeID(ctx context.Context, stripeSubscriptionID string) (*domain.Subscription, error)
 	Update(ctx context.Context, s *domain.Subscription) error
+}
+
+type BrollAssetRepository interface {
+	Create(ctx context.Context, a *domain.BrollAsset) error
+	GetByID(ctx context.Context, id string) (*domain.BrollAsset, error)
+	ListByUserID(ctx context.Context, userID string, projectID *string, limit, offset int) ([]*domain.BrollAsset, int, error)
+	Delete(ctx context.Context, id string) error
+}
+
+type ClipBrollSegmentRepository interface {
+	Create(ctx context.Context, s *domain.ClipBrollSegment) error
+	GetByID(ctx context.Context, id string) (*domain.ClipBrollSegment, error)
+	GetByClipID(ctx context.Context, clipID string) ([]*domain.ClipBrollSegment, error)
+	Delete(ctx context.Context, id string) error
+	DeleteByClipID(ctx context.Context, clipID string) error
+	NextSequenceOrder(ctx context.Context, clipID string) (int, error)
 }

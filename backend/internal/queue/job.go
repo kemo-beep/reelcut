@@ -9,13 +9,14 @@ import (
 )
 
 const (
-	TypeVideoMetadata   = "video:metadata"
-	TypeVideoThumbnail  = "video:thumbnail"
-	TypeVideoFetchURL   = "video:fetch_url"
-	TypeTranscription   = "transcription"
-	TypeAnalysis        = "analysis"
-	TypeRender          = "render"
-	TypeAutoCut         = "auto_cut"
+	TypeVideoMetadata    = "video:metadata"
+	TypeVideoThumbnail   = "video:thumbnail"
+	TypeVideoFetchURL    = "video:fetch_url"
+	TypeTranscription    = "transcription"
+	TypeAnalysis         = "analysis"
+	TypeRender           = "render"
+	TypeAutoCut          = "auto_cut"
+	TypeClipThumbnail    = "clip:thumbnail"
 )
 
 type VideoMetadataPayload struct {
@@ -41,12 +42,17 @@ type AnalysisPayload struct {
 }
 
 type RenderPayload struct {
-	ClipID string `json:"clip_id"`
-	JobID  string `json:"job_id"`
+	ClipID  string `json:"clip_id"`
+	JobID   string `json:"job_id"`
+	Preset  string `json:"preset,omitempty"` // e.g. "tiktok", "instagram_feed"
 }
 
 type AutoCutPayload struct {
 	VideoID string `json:"video_id"`
+}
+
+type ClipThumbnailPayload struct {
+	ClipID string `json:"clip_id"`
 }
 
 func NewVideoMetadataTask(videoID uuid.UUID) (*asynq.Task, error) {
@@ -89,8 +95,8 @@ func NewAnalysisTask(videoID uuid.UUID) (*asynq.Task, error) {
 	return asynq.NewTask(TypeAnalysis, payload), nil
 }
 
-func NewRenderTask(clipID, jobID uuid.UUID) (*asynq.Task, error) {
-	payload, err := json.Marshal(RenderPayload{ClipID: clipID.String(), JobID: jobID.String()})
+func NewRenderTask(clipID, jobID uuid.UUID, preset string) (*asynq.Task, error) {
+	payload, err := json.Marshal(RenderPayload{ClipID: clipID.String(), JobID: jobID.String(), Preset: preset})
 	if err != nil {
 		return nil, err
 	}
@@ -103,6 +109,14 @@ func NewAutoCutTask(videoID uuid.UUID) (*asynq.Task, error) {
 		return nil, err
 	}
 	return asynq.NewTask(TypeAutoCut, payload), nil
+}
+
+func NewClipThumbnailTask(clipID uuid.UUID) (*asynq.Task, error) {
+	payload, err := json.Marshal(ClipThumbnailPayload{ClipID: clipID.String()})
+	if err != nil {
+		return nil, err
+	}
+	return asynq.NewTask(TypeClipThumbnail, payload), nil
 }
 
 func ParseVideoMetadataPayload(b []byte) (VideoMetadataPayload, error) {
@@ -143,6 +157,12 @@ func ParseRenderPayload(b []byte) (RenderPayload, error) {
 
 func ParseAutoCutPayload(b []byte) (AutoCutPayload, error) {
 	var p AutoCutPayload
+	err := json.Unmarshal(b, &p)
+	return p, err
+}
+
+func ParseClipThumbnailPayload(b []byte) (ClipThumbnailPayload, error) {
+	var p ClipThumbnailPayload
 	err := json.Unmarshal(b, &p)
 	return p, err
 }
@@ -205,8 +225,8 @@ func (q *QueueClient) EnqueueAnalysis(videoID uuid.UUID) error {
 	return err
 }
 
-func (q *QueueClient) EnqueueRender(clipID, jobID uuid.UUID) error {
-	task, err := NewRenderTask(clipID, jobID)
+func (q *QueueClient) EnqueueRender(clipID, jobID uuid.UUID, preset string) error {
+	task, err := NewRenderTask(clipID, jobID, preset)
 	if err != nil {
 		return err
 	}
@@ -216,6 +236,15 @@ func (q *QueueClient) EnqueueRender(clipID, jobID uuid.UUID) error {
 
 func (q *QueueClient) EnqueueAutoCut(videoID uuid.UUID) error {
 	task, err := NewAutoCutTask(videoID)
+	if err != nil {
+		return err
+	}
+	_, err = q.client.Enqueue(task)
+	return err
+}
+
+func (q *QueueClient) EnqueueClipThumbnail(clipID uuid.UUID) error {
+	task, err := NewClipThumbnailTask(clipID)
 	if err != nil {
 		return err
 	}

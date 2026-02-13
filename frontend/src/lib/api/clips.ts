@@ -63,8 +63,8 @@ export async function deleteClip(id: string): Promise<void> {
   await del(`/api/v1/clips/${id}`)
 }
 
-export async function renderClip(id: string): Promise<unknown> {
-  return post(`/api/v1/clips/${id}/render`)
+export async function renderClip(id: string, body?: { preset?: string }): Promise<unknown> {
+  return post(`/api/v1/clips/${id}/render`, body ?? {})
 }
 
 export async function getRenderStatus(id: string): Promise<unknown> {
@@ -90,4 +90,45 @@ export async function updateClipStyle(clipId: string, style: Partial<ClipStyle>)
 
 export async function applyTemplateToClip(clipId: string, templateId: string): Promise<unknown> {
   return post(`/api/v1/clips/${clipId}/style/apply-template/${templateId}`)
+}
+
+export interface BrollAsset {
+  id: string
+  user_id: string
+  project_id?: string | null
+  original_filename: string
+  storage_path: string
+  duration_seconds?: number | null
+  width?: number | null
+  height?: number | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ClipBrollSegment {
+  id: string
+  clip_id: string
+  broll_asset_id: string
+  start_time: number
+  end_time: number
+  position: 'overlay' | 'cut_in'
+  scale: number
+  opacity: number
+  sequence_order: number
+  asset?: BrollAsset
+}
+
+export async function listBrollSegments(clipId: string): Promise<{ segments: ClipBrollSegment[] }> {
+  return get(`/api/v1/clips/${clipId}/broll`)
+}
+
+export async function addBrollSegment(
+  clipId: string,
+  body: { broll_asset_id: string; start_time: number; end_time: number; position?: string; scale?: number; opacity?: number }
+): Promise<{ segment: ClipBrollSegment }> {
+  return post(`/api/v1/clips/${clipId}/broll`, body)
+}
+
+export async function deleteBrollSegment(clipId: string, segmentId: string): Promise<void> {
+  await del(`/api/v1/clips/${clipId}/broll/${segmentId}`)
 }

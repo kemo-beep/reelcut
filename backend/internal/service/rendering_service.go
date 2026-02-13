@@ -7,17 +7,20 @@ import (
 	"os"
 	"path/filepath"
 
+	"reelcut/internal/config"
 	"reelcut/internal/domain"
 	"reelcut/internal/repository"
 	"reelcut/internal/video"
 )
 
 type RenderingService struct {
-	clipRepo         repository.ClipRepository
-	clipStyleRepo    repository.ClipStyleRepository
-	videoRepo        repository.VideoRepository
-	transcriptionSvc *TranscriptionService
-	storage          *StorageService
+	clipRepo              repository.ClipRepository
+	clipStyleRepo         repository.ClipStyleRepository
+	videoRepo             repository.VideoRepository
+	transcriptionSvc       *TranscriptionService
+	storage               *StorageService
+	clipBrollSegmentRepo  repository.ClipBrollSegmentRepository
+	brollAssetRepo        repository.BrollAssetRepository
 }
 
 func NewRenderingService(
@@ -26,18 +29,23 @@ func NewRenderingService(
 	videoRepo repository.VideoRepository,
 	transcriptionSvc *TranscriptionService,
 	storage *StorageService,
+	clipBrollSegmentRepo repository.ClipBrollSegmentRepository,
+	brollAssetRepo repository.BrollAssetRepository,
 ) *RenderingService {
 	return &RenderingService{
-		clipRepo:         clipRepo,
-		clipStyleRepo:     clipStyleRepo,
-		videoRepo:         videoRepo,
-		transcriptionSvc:  transcriptionSvc,
-		storage:           storage,
+		clipRepo:             clipRepo,
+		clipStyleRepo:        clipStyleRepo,
+		videoRepo:            videoRepo,
+		transcriptionSvc:     transcriptionSvc,
+		storage:              storage,
+		clipBrollSegmentRepo: clipBrollSegmentRepo,
+		brollAssetRepo:       brollAssetRepo,
 	}
 }
 
 // Render produces the output video for the clip and uploads to storage.
-func (s *RenderingService) Render(ctx context.Context, clipID string) error {
+// If preset is non-empty (e.g. "tiktok", "instagram_feed"), uses preset dimensions and aspect ratio.
+func (s *RenderingService) Render(ctx context.Context, clipID, preset string) error {
 	c, err := s.clipRepo.GetByID(ctx, clipID)
 	if err != nil || c == nil {
 		return domain.ErrNotFound
@@ -76,22 +84,78 @@ func (s *RenderingService) Render(ctx context.Context, clipID string) error {
 	}
 	current := stepPath
 
+	// B-roll overlay: apply each segment in sequence (each step reads previous output).
+	segments, _ := s.clipBrollSegmentRepo.GetByClipID(ctx, clipID)
+	clipDur := c.EndTime - c.StartTime
+	for i, seg := range segments {
+		if seg.Asset == nil {
+			asset, _ := s.brollAssetRepo.GetByID(ctx, seg.BrollAssetID.String())
+			if asset == nil {
+				continue
+			}
+			seg.Asset = asset
+		}
+		brollPath := filepath.Join(tmpDir, fmt.Sprintf("broll_%s.mp4", seg.BrollAssetID.String()))
+		rc, err := s.storage.Download(ctx, seg.Asset.StoragePath)
+		if err != nil {
+			continue
+		}
+		f, _ := os.Create(brollPath)
+		io.Copy(f, rc)
+		rc.Close()
+		f.Close()
+		nextPath := filepath.Join(tmpDir, fmt.Sprintf("step1b_broll_%d.mp4", i))
+		scale := seg.Scale
+		if scale <= 0 {
+			scale = 0.5
+		}
+		opacity := seg.Opacity
+		if opacity <= 0 {
+			opacity = 1
+		}
+		if err := video.OverlayVideo(ctx, current, brollPath, nextPath, seg.StartTime, seg.EndTime, scale, opacity); err != nil {
+			continue
+		}
+		current = nextPath
+	}
+	// If we have segments and clip duration, ensure overlay times are within clip duration (already in clip-relative 0..clipDur)
+	_ = clipDur
+
 	stepPath = filepath.Join(tmpDir, "step2_crop.mp4")
-	if err := video.ResizeCrop(ctx, current, stepPath, c.AspectRatio); err != nil {
-		return err
+	if preset != "" {
+		if p := config.GetExportPresetByID(preset); p != nil && p.Width > 0 && p.Height > 0 {
+			if err := video.ResizeCropToSize(ctx, current, stepPath, p.Width, p.Height); err != nil {
+				return err
+			}
+		} else {
+			if err := video.ResizeCrop(ctx, current, stepPath, c.AspectRatio); err != nil {
+				return err
+			}
+		}
+	} else {
+		if err := video.ResizeCrop(ctx, current, stepPath, c.AspectRatio); err != nil {
+			return err
+		}
 	}
 	current = stepPath
 
 	if style != nil && style.CaptionEnabled {
-		t, _ := s.transcriptionSvc.GetByVideoID(ctx, c.VideoID.String())
+		var t *domain.Transcription
+		if style.CaptionLanguage != nil && *style.CaptionLanguage != "" {
+			t, _ = s.transcriptionSvc.GetByVideoIDAndLanguage(ctx, c.VideoID.String(), *style.CaptionLanguage)
+		}
+		if t == nil {
+			t, _ = s.transcriptionSvc.GetByVideoID(ctx, c.VideoID.String())
+		}
 		if t != nil {
 			blocks := BlocksFromSegments(t.Segments, style, c.StartTime, c.EndTime)
-			srtPath := filepath.Join(tmpDir, "captions.srt")
-			if err := os.WriteFile(srtPath, []byte(ToSRT(blocks)), 0644); err != nil {
+			// Use ASS with full styling (font, color, position) when burning captions.
+			assPath := filepath.Join(tmpDir, "captions.ass")
+			if err := os.WriteFile(assPath, []byte(ToASS(blocks, style)), 0644); err != nil {
 				return err
 			}
 			stepPath = filepath.Join(tmpDir, "step3_subs.mp4")
-			if err := video.BurnSubtitles(ctx, current, srtPath, stepPath); err != nil {
+			if err := video.BurnASS(ctx, current, assPath, stepPath); err != nil {
 				return err
 			}
 			current = stepPath

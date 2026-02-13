@@ -69,8 +69,10 @@ func SetupRoutes(r *gin.Engine, h *handler.Handler, m *middleware.Middleware) {
         transcriptions := protected.Group("/transcriptions")
         {
             transcriptions.POST("/videos/:videoId", h.Transcription.Create)
+            transcriptions.GET("/videos/:videoId/list", h.Transcription.ListByVideoID)
+            transcriptions.GET("/videos/:videoId", h.Transcription.GetByVideoID)  // optional ?language=
+            transcriptions.POST("/:id/translate", h.Transcription.Translate)
             transcriptions.GET("/:id", h.Transcription.GetByID)
-            transcriptions.GET("/videos/:videoId", h.Transcription.GetByVideoID)
             transcriptions.PUT("/:id/segments/:segmentId", h.Transcription.UpdateSegment)
         }
 
@@ -87,17 +89,38 @@ func SetupRoutes(r *gin.Engine, h *handler.Handler, m *middleware.Middleware) {
         {
             clips.POST("", h.Clip.Create)
             clips.GET("", h.Clip.List)
+            clips.GET("/:id/playback-url", h.Clip.GetPlaybackURL)
             clips.GET("/:id", h.Clip.GetByID)
             clips.PUT("/:id", h.Clip.Update)
             clips.DELETE("/:id", h.Clip.Delete)
+            clips.GET("/:id/captions/srt", h.Clip.GetCaptionsSRT)
+            clips.GET("/:id/captions/vtt", h.Clip.GetCaptionsVTT)
             clips.POST("/:id/render", h.Clip.Render)
+            clips.POST("/:id/cancel", h.Clip.CancelRender)
             clips.GET("/:id/status", h.Clip.GetRenderStatus)
             clips.GET("/:id/download", h.Clip.Download)
             clips.POST("/:id/duplicate", h.Clip.Duplicate)
+            clips.GET("/:id/broll", h.Clip.ListBrollSegments)
+            clips.POST("/:id/broll", h.Clip.AddBrollSegment)
+            clips.DELETE("/:id/broll/:segmentId", h.Clip.DeleteBrollSegment)
+        }
+
+        // Config (caption fonts, export presets)
+        config := protected.Group("/config")
+        {
+            config.GET("/caption-fonts", h.Config.GetCaptionFonts)
+            config.GET("/export-presets", h.Config.GetExportPresets)
+        }
+
+        // B-roll assets
+        broll := protected.Group("/broll")
+        {
+            broll.POST("/assets", h.Broll.CreateAsset)
+            broll.GET("/assets", h.Broll.ListAssets)
         }
 
         // Clip Styles
-        clipStyles := protected.Group("/clips/:clipId/style")
+        clipStyles := protected.Group("/clips/:id/style")
         {
             clipStyles.GET("", h.Clip.GetStyle)
             clipStyles.PUT("", h.Clip.UpdateStyle)

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"reelcut/internal/ai"
 	"reelcut/internal/domain"
 	"reelcut/internal/queue"
 	"reelcut/internal/repository"
@@ -79,6 +80,76 @@ func (s *TranscriptionService) GetByVideoID(ctx context.Context, videoID string)
 		return nil, domain.ErrNotFound
 	}
 	return s.GetByID(ctx, t.ID.String())
+}
+
+func (s *TranscriptionService) GetByVideoIDAndLanguage(ctx context.Context, videoID, language string) (*domain.Transcription, error) {
+	t, err := s.transcriptionRepo.GetByVideoIDAndLanguage(ctx, videoID, language)
+	if err != nil || t == nil {
+		return nil, domain.ErrNotFound
+	}
+	return s.GetByID(ctx, t.ID.String())
+}
+
+func (s *TranscriptionService) ListCompletedByVideoID(ctx context.Context, videoID string) ([]*domain.Transcription, error) {
+	return s.transcriptionRepo.ListCompletedByVideoID(ctx, videoID)
+}
+
+// Translate creates a new transcription with the same timestamps but segment text translated to targetLang.
+// Uses Gemini to translate. The new transcription has source_transcription_id set to the source.
+func (s *TranscriptionService) Translate(ctx context.Context, sourceTranscriptionID string, targetLang string) (*domain.Transcription, error) {
+	source, err := s.GetByID(ctx, sourceTranscriptionID)
+	if err != nil || source == nil || source.Status != "completed" {
+		return nil, domain.ErrNotFound
+	}
+	if len(source.Segments) == 0 {
+		return nil, domain.ErrValidation
+	}
+	texts := make([]string, 0, len(source.Segments))
+	for _, seg := range source.Segments {
+		texts = append(texts, seg.Text)
+	}
+	translated, err := ai.TranslateSegments(ctx, texts, targetLang)
+	if err != nil {
+		return nil, err
+	}
+	sourceID, _ := uuid.Parse(sourceTranscriptionID)
+	newT := &domain.Transcription{
+		ID:                    uuid.New(),
+		VideoID:               source.VideoID,
+		Language:              targetLang,
+		Status:                "completed",
+		SourceTranscriptionID: &sourceID,
+		WordCount:             source.WordCount,
+		DurationSeconds:       source.DurationSeconds,
+		ConfidenceAvg:         source.ConfidenceAvg,
+	}
+	newSegments := make([]*domain.TranscriptSegment, 0, len(source.Segments))
+	for i, seg := range source.Segments {
+		translatedText := seg.Text
+		if i < len(translated) {
+			translatedText = translated[i]
+		}
+		newSeg := &domain.TranscriptSegment{
+			ID:             uuid.New(),
+			TranscriptionID: newT.ID,
+			StartTime:      seg.StartTime,
+			EndTime:        seg.EndTime,
+			Text:           translatedText,
+			Confidence:     seg.Confidence,
+			SpeakerID:      seg.SpeakerID,
+			SequenceOrder:  seg.SequenceOrder,
+			Words: []domain.TranscriptWord{
+				{ID: uuid.New(), SegmentID: uuid.Nil, Word: translatedText, StartTime: seg.StartTime, EndTime: seg.EndTime, SequenceOrder: 0},
+			},
+		}
+		newSeg.Words[0].SegmentID = newSeg.ID
+		newSeg.Words[0].ID = uuid.New()
+		newSegments = append(newSegments, newSeg)
+	}
+	if err := s.transcriptionRepo.CreateWithSegments(ctx, newT, newSegments); err != nil {
+		return nil, err
+	}
+	return s.GetByID(ctx, newT.ID.String())
 }
 
 func (s *TranscriptionService) UpdateSegment(ctx context.Context, transcriptionID, segmentID string, text string, startTime, endTime float64) error {

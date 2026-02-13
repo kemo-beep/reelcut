@@ -94,6 +94,8 @@ func main() {
 	videoAnalysisRepo := repository.NewVideoAnalysisRepository(pool)
 	clipRepo := repository.NewClipRepository(pool)
 	clipStyleRepo := repository.NewClipStyleRepository(pool)
+	brollAssetRepo := repository.NewBrollAssetRepository(pool)
+	clipBrollSegmentRepo := repository.NewClipBrollSegmentRepository(pool)
 	templateRepo := repository.NewTemplateRepository(pool)
 	jobRepo := repository.NewProcessingJobRepository(pool)
 	usageLogRepo := repository.NewUsageLogRepository(pool)
@@ -150,8 +152,8 @@ func main() {
 	videoSvc := service.NewVideoService(videoRepo, projectRepo, jobRepo, storageSvc, queueClient, userRepo, usageLogRepo)
 	transcriptionSvc := service.NewTranscriptionService(transcriptionRepo, segmentRepo, wordRepo, videoRepo, queueClient)
 	analysisSvc := service.NewAnalysisService(videoAnalysisRepo, transcriptionRepo, segmentRepo, videoRepo, queueClient)
-	renderingSvc := service.NewRenderingService(clipRepo, clipStyleRepo, videoRepo, transcriptionSvc, storageSvc)
-	clipSvc := service.NewClipService(clipRepo, clipStyleRepo, videoRepo, transcriptionSvc, jobRepo, queueClient, templateRepo, userRepo, usageLogRepo)
+	renderingSvc := service.NewRenderingService(clipRepo, clipStyleRepo, videoRepo, transcriptionSvc, storageSvc, clipBrollSegmentRepo, brollAssetRepo)
+	clipSvc := service.NewClipService(clipRepo, clipStyleRepo, videoRepo, transcriptionSvc, jobRepo, queueClient, templateRepo, userRepo, usageLogRepo, brollAssetRepo, clipBrollSegmentRepo, storageSvc)
 	templateSvc := service.NewTemplateService(templateRepo)
 	subscriptionSvc := service.NewSubscriptionService(subscriptionRepo, userRepo, cfg.Stripe.SecretKey, cfg.Stripe.PriceIDPro)
 	var transcriber ai.Transcriber
@@ -182,6 +184,8 @@ func main() {
 	autocutWorker.Register(mux)
 	renderingWorker := worker.NewRenderingWorker(renderingSvc, clipRepo, jobRepo, jobNotifier)
 	renderingWorker.Register(mux)
+	clipThumbnailWorker := worker.NewClipThumbnailWorker(clipRepo, videoRepo, storageSvc)
+	clipThumbnailWorker.Register(mux)
 	go func() {
 		if err := asynqSrv.Run(mux); err != nil {
 			log.Printf("asynq worker: %v", err)
@@ -197,11 +201,13 @@ func main() {
 		Transcription: handler.NewTranscriptionHandler(transcriptionSvc),
 		Analysis:     handler.NewAnalysisHandler(analysisSvc, videoSvc),
 		Clip:         handler.NewClipHandler(clipSvc, videoSvc),
+		Broll:        handler.NewBrollHandler(clipSvc),
 		Template:     handler.NewTemplateHandler(templateSvc),
 		Job:          handler.NewJobHandler(jobRepo),
 		Subscription: handler.NewSubscriptionHandler(subscriptionSvc),
 		Webhook:      handler.NewWebhookHandler(cfg.Stripe.WebhookSecret, subscriptionRepo, userRepo),
 		WebSocket:    handler.NewWebSocketHandler(wsHub),
+		Config:       handler.NewConfigHandler(),
 	}
 
 	gin.SetMode(gin.ReleaseMode)

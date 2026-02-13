@@ -6,6 +6,7 @@ export interface ClipStyle {
   caption_bg_color?: string | null
   caption_position: 'top' | 'center' | 'bottom'
   caption_animation?: string | null
+  caption_language?: string | null
   brand_logo_url?: string | null
   brand_logo_position?: string | null
   overlay_template?: string | null

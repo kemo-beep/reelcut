@@ -49,7 +49,7 @@ func (w *RenderingWorker) Handle(ctx context.Context, t *asynq.Task) error {
 		w.notifier.NotifyJob(ctx, job)
 	}
 
-	if err := w.renderingSvc.Render(ctx, payload.ClipID); err != nil {
+	if err := w.renderingSvc.Render(ctx, payload.ClipID, payload.Preset); err != nil {
 		job.Status = "failed"
 		if errMsg := err.Error(); errMsg != "" {
 			job.ErrorMessage = &errMsg

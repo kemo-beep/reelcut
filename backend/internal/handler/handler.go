@@ -8,9 +8,11 @@ type Handler struct {
 	Transcription *TranscriptionHandler
 	Analysis      *AnalysisHandler
 	Clip          *ClipHandler
+	Broll         *BrollHandler
 	Template      *TemplateHandler
 	Job           *JobHandler
 	Subscription  *SubscriptionHandler
 	Webhook       *WebhookHandler
 	WebSocket     *WebSocketHandler
+	Config        *ConfigHandler
 }

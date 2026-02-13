@@ -40,6 +40,7 @@ type ClipStyle struct {
 	CaptionPosition      string     `json:"caption_position"`
 	CaptionAnimation      *string    `json:"caption_animation,omitempty"`
 	CaptionMaxWords       int        `json:"caption_max_words"`
+	CaptionLanguage       *string    `json:"caption_language,omitempty"`
 	BrandLogoURL          *string    `json:"brand_logo_url,omitempty"`
 	BrandLogoPosition     *string    `json:"brand_logo_position,omitempty"`
 	BrandLogoScale        float64    `json:"brand_logo_scale"`

@@ -210,6 +210,9 @@ func (h *ClipHandler) Update(c *gin.Context) {
 		utils.Internal(c, "")
 		return
 	}
+	if body.StartTime != nil || body.EndTime != nil {
+		_ = h.clipSvc.EnqueueClipThumbnail(c.Request.Context(), clipID)
+	}
 	c.JSON(http.StatusOK, gin.H{"clip": clip})
 }
 
@@ -249,7 +252,11 @@ func (h *ClipHandler) Render(c *gin.Context) {
 		return
 	}
 	clipID := c.Param("id")
-	jobID, err := h.clipSvc.StartRender(c.Request.Context(), clipID, userID)
+	var body struct {
+		Preset string `json:"preset"`
+	}
+	_ = c.ShouldBindJSON(&body)
+	jobID, err := h.clipSvc.StartRender(c.Request.Context(), clipID, userID, body.Preset)
 	if err != nil {
 		if err == domain.ErrInsufficientCredits {
 			utils.Error(c, http.StatusPaymentRequired, "INSUFFICIENT_CREDITS", "Insufficient credits", nil)
@@ -470,4 +477,94 @@ func (h *ClipHandler) CancelRender(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Render cancelled"})
+}
+
+// ListBrollSegments godoc
+// @Summary		List B-roll segments for a clip
+// @Tags			clips
+// @Produce		json
+// @Security	BearerAuth
+// @Param		id	path		string	true	"Clip ID"
+// @Success	200	{object}	object	"Returns { segments: [...] }"
+// @Router		/api/v1/clips/{id}/broll [get]
+func (h *ClipHandler) ListBrollSegments(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		utils.Unauthorized(c, "")
+		return
+	}
+	clipID := c.Param("id")
+	list, err := h.clipSvc.ListBrollSegments(c.Request.Context(), clipID, userID)
+	if err != nil {
+		utils.NotFound(c, "Clip not found")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"segments": list})
+}
+
+// AddBrollSegment godoc
+// @Summary		Add a B-roll segment to a clip
+// @Tags			clips
+// @Accept		json
+// @Produce		json
+// @Security	BearerAuth
+// @Param		id	path		string	true	"Clip ID"
+// @Param		body	body		object	true	"broll_asset_id, start_time, end_time, position, scale?, opacity?"
+// @Success	201	{object}	object
+// @Router		/api/v1/clips/{id}/broll [post]
+func (h *ClipHandler) AddBrollSegment(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		utils.Unauthorized(c, "")
+		return
+	}
+	clipID := c.Param("id")
+	var body struct {
+		BrollAssetID string  `json:"broll_asset_id" binding:"required"`
+		StartTime    float64 `json:"start_time" binding:"required"`
+		EndTime      float64 `json:"end_time" binding:"required"`
+		Position     string  `json:"position"` // overlay | cut_in
+		Scale        float64 `json:"scale"`
+		Opacity      float64 `json:"opacity"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		utils.ValidationError(c, []utils.ErrorDetail{{Message: err.Error()}})
+		return
+	}
+	seg, err := h.clipSvc.AddBrollSegment(c.Request.Context(), clipID, userID, body.BrollAssetID, body.StartTime, body.EndTime, body.Position, body.Scale, body.Opacity)
+	if err != nil {
+		if err == domain.ErrNotFound {
+			utils.NotFound(c, "Clip or B-roll asset not found")
+			return
+		}
+		if err == domain.ErrValidation {
+			utils.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid times or position", nil)
+			return
+		}
+		utils.Internal(c, "")
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"segment": seg})
+}
+
+// DeleteBrollSegment godoc
+// @Summary		Remove a B-roll segment from a clip
+// @Tags			clips
+// @Security	BearerAuth
+// @Param		id	path		string	true	"Clip ID"
+// @Param		segmentId	path		string	true	"Segment ID"
+// @Success	204	"No content"
+// @Router		/api/v1/clips/{id}/broll/{segmentId} [delete]
+func (h *ClipHandler) DeleteBrollSegment(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		utils.Unauthorized(c, "")
+		return
+	}
+	segmentID := c.Param("segmentId")
+	if err := h.clipSvc.DeleteBrollSegment(c.Request.Context(), segmentID, userID); err != nil {
+		utils.NotFound(c, "Segment not found")
+		return
+	}
+	c.Status(http.StatusNoContent)
 }

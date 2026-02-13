@@ -106,10 +106,15 @@ func (h *TranscriptionHandler) GetByVideoID(c *gin.Context) {
 		return
 	}
 	videoID := c.Param("videoId")
-	t, err := h.transcriptionSvc.GetByVideoID(c.Request.Context(), videoID)
+	language := c.Query("language")
+	var t *domain.Transcription
+	var err error
+	if language != "" {
+		t, err = h.transcriptionSvc.GetByVideoIDAndLanguage(c.Request.Context(), videoID, language)
+	} else {
+		t, err = h.transcriptionSvc.GetByVideoID(c.Request.Context(), videoID)
+	}
 	if err != nil {
-		// Contract: this endpoint must never return 404 for "no transcription"; return 200 + null so UI shows empty state.
-		// Do not call c.Error() so the global error handler does not convert this to 404.
 		if err == domain.ErrNotFound || errors.Is(err, domain.ErrNotFound) {
 			c.JSON(http.StatusOK, gin.H{"transcription": nil})
 			return
@@ -157,4 +162,66 @@ func (h *TranscriptionHandler) UpdateSegment(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "updated"})
+}
+
+// Translate godoc
+// @Summary		Translate transcription to another language
+// @Tags			transcriptions
+// @Accept		json
+// @Produce		json
+// @Security	BearerAuth
+// @Param		id	path		string	true	"Source transcription ID"
+// @Param		body	body		object	true	"target_language (ISO 639-1)"
+// @Success	201	{object}	object	"Returns new transcription with same timestamps, translated text"
+// @Failure	404	{object}	utils.ErrorResponse
+// @Router		/api/v1/transcriptions/{id}/translate [post]
+func (h *TranscriptionHandler) Translate(c *gin.Context) {
+	if middleware.GetUserID(c) == "" {
+		utils.Unauthorized(c, "")
+		return
+	}
+	id := c.Param("id")
+	var body struct {
+		TargetLanguage string `json:"target_language"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.TargetLanguage == "" {
+		utils.ValidationError(c, []utils.ErrorDetail{{Field: "target_language", Message: "required"}})
+		return
+	}
+	t, err := h.transcriptionSvc.Translate(c.Request.Context(), id, body.TargetLanguage)
+	if err != nil {
+		if err == domain.ErrNotFound {
+			utils.NotFound(c, "Transcription not found")
+			return
+		}
+		if err == domain.ErrValidation {
+			utils.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", "Cannot translate this transcription", nil)
+			return
+		}
+		utils.Internal(c, "")
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"transcription": t})
+}
+
+// ListByVideoID godoc
+// @Summary		List all completed transcriptions for a video (for caption language selection)
+// @Tags			transcriptions
+// @Produce		json
+// @Security	BearerAuth
+// @Param		videoId	path		string	true	"Video ID"
+// @Success	200	{object}	object	"Returns { transcriptions: [ { id, language, ... } ] }"
+// @Router		/api/v1/transcriptions/videos/{videoId}/list [get]
+func (h *TranscriptionHandler) ListByVideoID(c *gin.Context) {
+	if middleware.GetUserID(c) == "" {
+		utils.Unauthorized(c, "")
+		return
+	}
+	videoID := c.Param("videoId")
+	list, err := h.transcriptionSvc.ListCompletedByVideoID(c.Request.Context(), videoID)
+	if err != nil {
+		utils.Internal(c, "")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"transcriptions": list})
 }

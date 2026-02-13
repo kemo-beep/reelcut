@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"io"
 
 	"reelcut/internal/domain"
 	"reelcut/internal/queue"
@@ -11,16 +12,24 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	MaxBrollFileSizeMB = 500
+	MaxBrollDurationSec = 300
+)
+
 type ClipService struct {
-	clipRepo         repository.ClipRepository
-	clipStyleRepo    repository.ClipStyleRepository
-	videoRepo        repository.VideoRepository
-	transcriptionSvc *TranscriptionService
-	jobRepo          repository.ProcessingJobRepository
-	queue            *queue.QueueClient
-	templateRepo     repository.TemplateRepository
-	userRepo         repository.UserRepository
-	usageLogRepo     repository.UsageLogRepository
+	clipRepo              repository.ClipRepository
+	clipStyleRepo         repository.ClipStyleRepository
+	videoRepo             repository.VideoRepository
+	transcriptionSvc      *TranscriptionService
+	jobRepo               repository.ProcessingJobRepository
+	queue                 *queue.QueueClient
+	templateRepo          repository.TemplateRepository
+	userRepo              repository.UserRepository
+	usageLogRepo          repository.UsageLogRepository
+	brollAssetRepo        repository.BrollAssetRepository
+	clipBrollSegmentRepo  repository.ClipBrollSegmentRepository
+	storage               *StorageService
 }
 
 func NewClipService(
@@ -33,17 +42,23 @@ func NewClipService(
 	templateRepo repository.TemplateRepository,
 	userRepo repository.UserRepository,
 	usageLogRepo repository.UsageLogRepository,
+	brollAssetRepo repository.BrollAssetRepository,
+	clipBrollSegmentRepo repository.ClipBrollSegmentRepository,
+	storage *StorageService,
 ) *ClipService {
 	return &ClipService{
-		clipRepo:         clipRepo,
-		clipStyleRepo:    clipStyleRepo,
-		videoRepo:        videoRepo,
-		transcriptionSvc: transcriptionSvc,
-		jobRepo:          jobRepo,
-		queue:            queue,
-		templateRepo:     templateRepo,
-		userRepo:         userRepo,
-		usageLogRepo:     usageLogRepo,
+		clipRepo:             clipRepo,
+		clipStyleRepo:        clipStyleRepo,
+		videoRepo:            videoRepo,
+		transcriptionSvc:     transcriptionSvc,
+		jobRepo:              jobRepo,
+		queue:                queue,
+		templateRepo:         templateRepo,
+		userRepo:             userRepo,
+		usageLogRepo:         usageLogRepo,
+		brollAssetRepo:       brollAssetRepo,
+		clipBrollSegmentRepo: clipBrollSegmentRepo,
+		storage:              storage,
 	}
 }
 
@@ -96,6 +111,7 @@ func (s *ClipService) Create(ctx context.Context, userID uuid.UUID, videoID, nam
 	if err := s.clipStyleRepo.Create(ctx, style); err != nil {
 		return nil, err
 	}
+	_ = s.queue.EnqueueClipThumbnail(c.ID)
 	return c, nil
 }
 
@@ -122,6 +138,15 @@ func (s *ClipService) List(ctx context.Context, userID string, videoID *string, 
 
 func (s *ClipService) Update(ctx context.Context, c *domain.Clip) error {
 	return s.clipRepo.Update(ctx, c)
+}
+
+// EnqueueClipThumbnail enqueues a job to generate the clip's thumbnail. Call when clip is created or when start/end time change.
+func (s *ClipService) EnqueueClipThumbnail(ctx context.Context, clipID string) error {
+	uid, err := uuid.Parse(clipID)
+	if err != nil {
+		return err
+	}
+	return s.queue.EnqueueClipThumbnail(uid)
 }
 
 func (s *ClipService) Delete(ctx context.Context, clipID, userID string) error {
@@ -169,6 +194,9 @@ func (s *ClipService) UpdateStyle(ctx context.Context, clipID, userID string, up
 	if updates.CaptionPosition != "" {
 		style.CaptionPosition = updates.CaptionPosition
 	}
+	if updates.CaptionLanguage != nil {
+		style.CaptionLanguage = updates.CaptionLanguage
+	}
 	if updates.BackgroundMusicVolume >= 0 {
 		style.BackgroundMusicVolume = updates.BackgroundMusicVolume
 	}
@@ -183,7 +211,13 @@ func (s *ClipService) GetCaptionsSRT(ctx context.Context, clipID, userID string)
 	if err != nil {
 		return "", err
 	}
-	t, err := s.transcriptionSvc.GetByVideoID(ctx, c.VideoID.String())
+	var t *domain.Transcription
+	if c.Style != nil && c.Style.CaptionLanguage != nil && *c.Style.CaptionLanguage != "" {
+		t, _ = s.transcriptionSvc.GetByVideoIDAndLanguage(ctx, c.VideoID.String(), *c.Style.CaptionLanguage)
+	}
+	if t == nil {
+		t, err = s.transcriptionSvc.GetByVideoID(ctx, c.VideoID.String())
+	}
 	if err != nil || t == nil {
 		return "", domain.ErrNotFound
 	}
@@ -196,7 +230,13 @@ func (s *ClipService) GetCaptionsVTT(ctx context.Context, clipID, userID string)
 	if err != nil {
 		return "", err
 	}
-	t, err := s.transcriptionSvc.GetByVideoID(ctx, c.VideoID.String())
+	var t *domain.Transcription
+	if c.Style != nil && c.Style.CaptionLanguage != nil && *c.Style.CaptionLanguage != "" {
+		t, _ = s.transcriptionSvc.GetByVideoIDAndLanguage(ctx, c.VideoID.String(), *c.Style.CaptionLanguage)
+	}
+	if t == nil {
+		t, err = s.transcriptionSvc.GetByVideoID(ctx, c.VideoID.String())
+	}
 	if err != nil || t == nil {
 		return "", domain.ErrNotFound
 	}
@@ -204,7 +244,7 @@ func (s *ClipService) GetCaptionsVTT(ctx context.Context, clipID, userID string)
 	return ToVTT(blocks), nil
 }
 
-func (s *ClipService) StartRender(ctx context.Context, clipID, userID string) (jobID string, err error) {
+func (s *ClipService) StartRender(ctx context.Context, clipID, userID, preset string) (jobID string, err error) {
 	c, err := s.clipRepo.GetByID(ctx, clipID)
 	if err != nil || c == nil || c.UserID.String() != userID {
 		return "", domain.ErrNotFound
@@ -226,7 +266,7 @@ func (s *ClipService) StartRender(ctx context.Context, clipID, userID string) (j
 	if err := s.jobRepo.Create(ctx, job); err != nil {
 		return "", err
 	}
-	if err := s.queue.EnqueueRender(c.ID, job.ID); err != nil {
+	if err := s.queue.EnqueueRender(c.ID, job.ID, preset); err != nil {
 		return "", err
 	}
 	c.Status = "rendering"
@@ -286,4 +326,103 @@ func (s *ClipService) ApplyTemplate(ctx context.Context, clipID, userID, templat
 		return err
 	}
 	return s.templateRepo.IncrementUsageCount(ctx, templateID)
+}
+
+func (s *ClipService) CreateBrollAsset(ctx context.Context, userID uuid.UUID, projectID *string, filename string, body io.Reader, contentType string, sizeBytes int64) (*domain.BrollAsset, error) {
+	maxBytes := int64(MaxBrollFileSizeMB * 1024 * 1024)
+	if sizeBytes > maxBytes || sizeBytes <= 0 {
+		return nil, domain.ErrValidation
+	}
+	id := uuid.New()
+	storagePath := "broll/" + id.String() + ".mp4"
+	if err := s.storage.Upload(ctx, storagePath, body, contentType); err != nil {
+		return nil, err
+	}
+	var projID *uuid.UUID
+	if projectID != nil {
+		p, _ := uuid.Parse(*projectID)
+		projID = &p
+	}
+	a := &domain.BrollAsset{
+		ID:               id,
+		UserID:           userID,
+		ProjectID:        projID,
+		OriginalFilename: filename,
+		StoragePath:      storagePath,
+	}
+	if err := s.brollAssetRepo.Create(ctx, a); err != nil {
+		return nil, err
+	}
+	return a, nil
+}
+
+func (s *ClipService) ListBrollAssets(ctx context.Context, userID string, projectID *string, limit, offset int) ([]*domain.BrollAsset, int, error) {
+	return s.brollAssetRepo.ListByUserID(ctx, userID, projectID, limit, offset)
+}
+
+func (s *ClipService) AddBrollSegment(ctx context.Context, clipID, userID, brollAssetID string, startTime, endTime float64, position string, scale, opacity float64) (*domain.ClipBrollSegment, error) {
+	c, err := s.clipRepo.GetByID(ctx, clipID)
+	if err != nil || c == nil || c.UserID.String() != userID {
+		return nil, domain.ErrNotFound
+	}
+	asset, err := s.brollAssetRepo.GetByID(ctx, brollAssetID)
+	if err != nil || asset == nil || asset.UserID.String() != userID {
+		return nil, domain.ErrNotFound
+	}
+	if endTime <= startTime {
+		return nil, domain.ErrValidation
+	}
+	clipDur := c.EndTime - c.StartTime
+	if startTime < 0 || endTime > clipDur {
+		return nil, domain.ErrValidation
+	}
+	if position == "" {
+		position = "overlay"
+	}
+	if position != "overlay" && position != "cut_in" {
+		position = "overlay"
+	}
+	if scale <= 0 {
+		scale = 0.5
+	}
+	if opacity <= 0 {
+		opacity = 1
+	}
+	order, _ := s.clipBrollSegmentRepo.NextSequenceOrder(ctx, clipID)
+	assetUUID, _ := uuid.Parse(brollAssetID)
+	seg := &domain.ClipBrollSegment{
+		ID:            uuid.New(),
+		ClipID:        c.ID,
+		BrollAssetID:  assetUUID,
+		StartTime:     startTime,
+		EndTime:       endTime,
+		Position:      position,
+		Scale:         scale,
+		Opacity:       opacity,
+		SequenceOrder: order,
+	}
+	if err := s.clipBrollSegmentRepo.Create(ctx, seg); err != nil {
+		return nil, err
+	}
+	seg.Asset = asset
+	return seg, nil
+}
+
+func (s *ClipService) ListBrollSegments(ctx context.Context, clipID, userID string) ([]*domain.ClipBrollSegment, error) {
+	if _, err := s.GetByID(ctx, clipID, userID); err != nil {
+		return nil, err
+	}
+	return s.clipBrollSegmentRepo.GetByClipID(ctx, clipID)
+}
+
+func (s *ClipService) DeleteBrollSegment(ctx context.Context, segmentID, userID string) error {
+	seg, err := s.clipBrollSegmentRepo.GetByID(ctx, segmentID)
+	if err != nil || seg == nil {
+		return domain.ErrNotFound
+	}
+	c, err := s.clipRepo.GetByID(ctx, seg.ClipID.String())
+	if err != nil || c == nil || c.UserID.String() != userID {
+		return domain.ErrNotFound
+	}
+	return s.clipBrollSegmentRepo.Delete(ctx, segmentID)
 }

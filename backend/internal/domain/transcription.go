@@ -7,17 +7,18 @@ import (
 )
 
 type Transcription struct {
-	ID               uuid.UUID  `json:"id"`
-	VideoID          uuid.UUID  `json:"video_id"`
-	Language         string     `json:"language"`
-	Status           string     `json:"status"`
-	ErrorMessage     *string    `json:"error_message,omitempty"`
-	WordCount        *int       `json:"word_count,omitempty"`
-	DurationSeconds  *float64   `json:"duration_seconds,omitempty"`
-	ConfidenceAvg    *float64   `json:"confidence_avg,omitempty"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
-	Segments         []TranscriptSegment `json:"segments,omitempty"`
+	ID                    uuid.UUID  `json:"id"`
+	VideoID               uuid.UUID  `json:"video_id"`
+	Language              string     `json:"language"`
+	Status                string     `json:"status"`
+	SourceTranscriptionID *uuid.UUID `json:"source_transcription_id,omitempty"`
+	ErrorMessage          *string    `json:"error_message,omitempty"`
+	WordCount             *int       `json:"word_count,omitempty"`
+	DurationSeconds       *float64   `json:"duration_seconds,omitempty"`
+	ConfidenceAvg         *float64   `json:"confidence_avg,omitempty"`
+	CreatedAt             time.Time  `json:"created_at"`
+	UpdatedAt             time.Time  `json:"updated_at"`
+	Segments              []TranscriptSegment `json:"segments,omitempty"`
 }
 
 type TranscriptSegment struct {

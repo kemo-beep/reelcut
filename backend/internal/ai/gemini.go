@@ -201,3 +201,82 @@ func truncate(s string, n int) string {
 	}
 	return s[:n] + "..."
 }
+
+// TranslateSegments translates segment texts to targetLang using Gemini. Returns translated texts in same order, or nil on error.
+func TranslateSegments(ctx context.Context, segmentTexts []string, targetLang string) ([]string, error) {
+	if len(segmentTexts) == 0 {
+		return nil, nil
+	}
+	key := os.Getenv("GEMINI_API_KEY")
+	if key == "" {
+		return nil, fmt.Errorf("GEMINI_API_KEY not set")
+	}
+	model := os.Getenv("GEMINI_MODEL")
+	if model == "" {
+		model = geminiDefaultModel
+	}
+	var b strings.Builder
+	for i, t := range segmentTexts {
+		fmt.Fprintf(&b, "%d. %s\n", i+1, t)
+	}
+	prompt := fmt.Sprintf(`Translate the following numbered lines to %s. Preserve the exact same number of lines and order. Return ONLY the translated lines in the same numbering format: "1. translation" then "2. translation" etc. No other text.\n\n%s`, targetLang, b.String())
+	reqBody := geminiGenerateRequest{
+		Contents: []struct {
+			Parts []struct {
+				Text string `json:"text"`
+			} `json:"parts"`
+		}{
+			{Parts: []struct {
+				Text string `json:"text"`
+			}{{Text: prompt}}},
+		},
+	}
+	body, _ := json.Marshal(reqBody)
+	base := os.Getenv("GEMINI_API_BASE")
+	if base == "" {
+		base = geminiAPIBase
+	}
+	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s", base, model, key)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("gemini API: %s", resp.Status)
+	}
+	var apiResp geminiGenerateResponse
+	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+		return nil, err
+	}
+	if len(apiResp.Candidates) == 0 || len(apiResp.Candidates[0].Content.Parts) == 0 {
+		return nil, fmt.Errorf("gemini: empty response")
+	}
+	rawText := apiResp.Candidates[0].Content.Parts[0].Text
+	// Parse "1. text" lines
+	lines := strings.Split(rawText, "\n")
+	out := make([]string, 0, len(segmentTexts))
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		idx := strings.Index(line, ".")
+		if idx <= 0 {
+			out = append(out, line)
+			continue
+		}
+		rest := strings.TrimSpace(line[idx+1:])
+		out = append(out, rest)
+	}
+	if len(out) < len(segmentTexts) {
+		return nil, fmt.Errorf("gemini: got %d lines, need %d", len(out), len(segmentTexts))
+	}
+	return out[:len(segmentTexts)], nil
+}

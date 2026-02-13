@@ -124,7 +124,12 @@ func (w *VideoWorker) HandleThumbnail(ctx context.Context, t *asynq.Task) error 
 	defer os.Remove(localPath)
 
 	thumbPath := filepath.Join(tmpDir, "reelcut", v.ID.String()+"_thumb.jpg")
-	if err := video.ExtractFrame(ctx, localPath, 0, thumbPath); err != nil {
+	// Use 1s offset to skip black slate at start when possible
+	timestampSec := 0.0
+	if v.DurationSeconds != nil && *v.DurationSeconds > 1 {
+		timestampSec = 1.0
+	}
+	if err := video.ExtractFrame(ctx, localPath, timestampSec, thumbPath); err != nil {
 		return fmt.Errorf("extract frame: %w", err)
 	}
 	defer os.Remove(thumbPath)

@@ -2,7 +2,12 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { getVideo, getPlaybackUrl, deleteVideo, triggerAutoCut } from '../../../../lib/api/videos'
-import { createTranscription, getTranscriptionByVideoId } from '../../../../lib/api/transcriptions'
+import {
+  createTranscription,
+  getTranscriptionByVideoId,
+  listTranscriptionsByVideo,
+  translateTranscription,
+} from '../../../../lib/api/transcriptions'
 import { analyzeVideo, suggestClips } from '../../../../lib/api/analysis'
 import { listClips, updateClip } from '../../../../lib/api/clips'
 import { Button } from '../../../../components/ui/button'
@@ -23,6 +28,9 @@ function VideoDetailPage() {
   const queryClient = useQueryClient()
   const playerRef = useRef<{ seek: (time: number) => void; getCurrentTime: () => number }>(null)
   const [currentTime, setCurrentTime] = useState(0)
+  const [createLanguage, setCreateLanguage] = useState('en')
+  const [viewLanguage, setViewLanguage] = useState<string | null>(null)
+  const [translateTarget, setTranslateTarget] = useState('es')
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['video', videoId],
@@ -37,14 +45,22 @@ function VideoDetailPage() {
     retry: false,
   })
   const { data: transData, isLoading: transLoading } = useQuery({
-    queryKey: ['transcription', videoId],
-    queryFn: () => getTranscriptionByVideoId(videoId),
+    queryKey: ['transcription', videoId, viewLanguage ?? 'default'],
+    queryFn: () =>
+      getTranscriptionByVideoId(videoId, viewLanguage ? { language: viewLanguage } : undefined),
     enabled: !!data?.video,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
     refetchInterval: (query) =>
       query.state.data?.transcription?.status === 'processing' ? 2500 : false,
   })
+  const { data: listData } = useQuery({
+    queryKey: ['transcriptions-list', videoId],
+    queryFn: () => listTranscriptionsByVideo(videoId),
+    enabled: !!data?.video && transData?.transcription?.status === 'completed',
+    staleTime: 30 * 1000,
+  })
+  const transcriptionsList = listData?.transcriptions ?? []
   const { data: clipsData } = useQuery({
     queryKey: ['clips', { video_id: videoId }],
     queryFn: () => listClips({ video_id: videoId, per_page: 100 }),
@@ -76,13 +92,14 @@ function VideoDetailPage() {
     if (!transcriptionLoaded) return
     if (transcription != null) return
     autoStartedRef.current = true
-    createTranscription(videoId)
+    createTranscription(videoId, { language: createLanguage })
       .then(() => {
         queryClient.invalidateQueries({ queryKey: ['transcription', videoId] })
+        queryClient.invalidateQueries({ queryKey: ['transcriptions-list', videoId] })
         toast.info('Transcription started automatically')
       })
       .catch(() => { autoStartedRef.current = false })
-  }, [data?.video, transData?.transcription, transcriptionLoaded, videoId, queryClient])
+  }, [data?.video, transData?.transcription, transcriptionLoaded, videoId, queryClient, createLanguage])
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteVideo(videoId),
@@ -95,9 +112,10 @@ function VideoDetailPage() {
   })
 
   const createTranscriptionMut = useMutation({
-    mutationFn: () => createTranscription(videoId),
+    mutationFn: () => createTranscription(videoId, { language: createLanguage }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transcription', videoId] })
+      queryClient.invalidateQueries({ queryKey: ['transcriptions-list', videoId] })
       toast.success('Transcription started')
     },
     onError: (err) => {
@@ -106,9 +124,20 @@ function VideoDetailPage() {
     },
   })
 
+  const translateMut = useMutation({
+    mutationFn: ({ transcriptionId, targetLanguage }: { transcriptionId: string; targetLanguage: string }) =>
+      translateTranscription(transcriptionId, { target_language: targetLanguage }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transcription', videoId] })
+      queryClient.invalidateQueries({ queryKey: ['transcriptions-list', videoId] })
+      toast.success('Translation started; new language will appear shortly.')
+    },
+    onError: () => toast.error('Translation failed'),
+  })
+
   const transcribeAndSuggestMut = useMutation({
     mutationFn: async () => {
-      const { transcription } = await createTranscription(videoId)
+      const { transcription } = await createTranscription(videoId, { language: createLanguage })
       const pollMs = 3000
       const maxWait = 10 * 60 * 1000
       const start = Date.now()
@@ -301,14 +330,31 @@ function VideoDetailPage() {
                   ? 'Start transcription to generate captions and enable AI clip suggestions.'
                   : 'Video is still processing. Transcription can be started when the video is ready.'}
               </p>
-              <Button
-                onClick={() => createTranscriptionMut.mutate()}
-                disabled={createTranscriptionMut.isPending || !videoReady}
-                size="sm"
-                className="bg-[var(--app-accent)] text-[#0a0a0b] hover:bg-[var(--app-accent-hover)] disabled:opacity-50"
-              >
-                {createTranscriptionMut.isPending ? 'Starting…' : 'Start transcription'}
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="text-sm text-[var(--app-fg-muted)]">Source language:</label>
+                <select
+                  className="rounded border border-[var(--app-border)] bg-[var(--app-bg)] px-2 py-1 text-sm text-[var(--app-fg)]"
+                  value={createLanguage}
+                  onChange={(e) => setCreateLanguage(e.target.value)}
+                >
+                  <option value="en">English</option>
+                  <option value="es">Spanish</option>
+                  <option value="fr">French</option>
+                  <option value="de">German</option>
+                  <option value="it">Italian</option>
+                  <option value="pt">Portuguese</option>
+                  <option value="ja">Japanese</option>
+                  <option value="zh">Chinese</option>
+                </select>
+                <Button
+                  onClick={() => createTranscriptionMut.mutate()}
+                  disabled={createTranscriptionMut.isPending || !videoReady}
+                  size="sm"
+                  className="bg-[var(--app-accent)] text-[#0a0a0b] hover:bg-[var(--app-accent-hover)] disabled:opacity-50"
+                >
+                  {createTranscriptionMut.isPending ? 'Starting…' : 'Start transcription'}
+                </Button>
+              </div>
             </div>
           )}
 
@@ -333,12 +379,60 @@ function VideoDetailPage() {
             transcription.status === 'completed' &&
             transcription.segments &&
             transcription.segments.length > 0 && (
-              <TranscriptViewer
-                segments={transcription.segments}
-                currentTime={currentTime}
-                onSeek={(t) => playerRef.current?.seek(t)}
-                className="max-h-[50vh]"
-              />
+              <>
+                {transcriptionsList.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                    <span className="text-sm text-[var(--app-fg-muted)]">View:</span>
+                    <button
+                      type="button"
+                      className={viewLanguage === null ? 'font-medium text-[var(--app-accent)]' : 'text-sm text-[var(--app-fg-muted)] hover:text-[var(--app-fg)]'}
+                      onClick={() => setViewLanguage(null)}
+                    >
+                      Default
+                    </button>
+                    {transcriptionsList.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        className={viewLanguage === t.language ? 'font-medium text-[var(--app-accent)]' : 'text-sm text-[var(--app-fg-muted)] hover:text-[var(--app-fg)]'}
+                        onClick={() => setViewLanguage(t.language)}
+                      >
+                        {t.language === 'en' ? 'English' : t.language === 'es' ? 'Spanish' : t.language === 'fr' ? 'French' : t.language === 'de' ? 'German' : t.language}
+                      </button>
+                    ))}
+                    <span className="text-sm text-[var(--app-fg-muted)] ml-2">|</span>
+                    <span className="text-sm text-[var(--app-fg-muted)]">Translate to:</span>
+                    <select
+                      className="rounded border border-[var(--app-border)] bg-[var(--app-bg)] px-2 py-1 text-sm text-[var(--app-fg)]"
+                      value={translateTarget}
+                      onChange={(e) => setTranslateTarget(e.target.value)}
+                    >
+                      <option value="es">Spanish</option>
+                      <option value="fr">French</option>
+                      <option value="de">German</option>
+                      <option value="it">Italian</option>
+                      <option value="pt">Portuguese</option>
+                      <option value="ja">Japanese</option>
+                      <option value="zh">Chinese</option>
+                    </select>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-[var(--app-border)]"
+                      disabled={translateMut.isPending || transcriptionsList.some((t) => t.language === translateTarget)}
+                      onClick={() => transcription && translateMut.mutate({ transcriptionId: transcription.id, targetLanguage: translateTarget })}
+                    >
+                      {translateMut.isPending ? 'Translating…' : 'Translate'}
+                    </Button>
+                  </div>
+                )}
+                <TranscriptViewer
+                  segments={transcription.segments}
+                  currentTime={currentTime}
+                  onSeek={(t) => playerRef.current?.seek(t)}
+                  className="max-h-[50vh]"
+                />
+              </>
             )}
 
           {transcription &&
