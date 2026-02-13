@@ -54,7 +54,7 @@ export function VideoClipsPageHeader({
           <Sparkles size={16} className="mr-1" />
           {isSuggesting ? 'Analyzing…' : 'AI suggest clips'}
         </Button>
-        <Link to="/dashboard/clips" search={{ videoId }}>
+        <Link to="/dashboard/videos/$videoId/clips" params={{ videoId }}>
           <Button size="sm" className="bg-[var(--app-accent)] text-[#0a0a0b] hover:bg-[var(--app-accent-hover)]">
             <Plus size={16} className="mr-1" />
             Create clip

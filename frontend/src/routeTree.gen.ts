@@ -25,8 +25,7 @@ import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
 import { Route as DashboardVideosIndexRouteImport } from './routes/dashboard/videos/index'
 import { Route as DashboardTemplatesIndexRouteImport } from './routes/dashboard/templates/index'
-import { Route as DashboardProjectsIndexRouteImport } from './routes/dashboard/projects/index'
-import { Route as DashboardClipsIndexRouteImport } from './routes/dashboard/clips/index'
+import { Route as DashboardAssetsIndexRouteImport } from './routes/dashboard/assets/index'
 import { Route as DemoStartServerFuncsRouteImport } from './routes/demo/start.server-funcs'
 import { Route as DemoStartApiRequestRouteImport } from './routes/demo/start.api-request'
 import { Route as DemoFormSimpleRouteImport } from './routes/demo/form.simple'
@@ -37,8 +36,6 @@ import { Route as DashboardVideosUploadRouteImport } from './routes/dashboard/vi
 import { Route as DashboardSettingsUsageRouteImport } from './routes/dashboard/settings/usage'
 import { Route as DashboardSettingsProfileRouteImport } from './routes/dashboard/settings/profile'
 import { Route as DashboardSettingsBillingRouteImport } from './routes/dashboard/settings/billing'
-import { Route as DashboardProjectsProjectIdRouteImport } from './routes/dashboard/projects/$projectId'
-import { Route as DashboardClipsClipIdRouteImport } from './routes/dashboard/clips/$clipId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as DemoStartSsrIndexRouteImport } from './routes/demo/start.ssr.index'
 import { Route as DashboardVideosVideoIdIndexRouteImport } from './routes/dashboard/videos/$videoId/index'
@@ -128,14 +125,9 @@ const DashboardTemplatesIndexRoute = DashboardTemplatesIndexRouteImport.update({
   path: '/templates/',
   getParentRoute: () => DashboardRoute,
 } as any)
-const DashboardProjectsIndexRoute = DashboardProjectsIndexRouteImport.update({
-  id: '/projects/',
-  path: '/projects/',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardClipsIndexRoute = DashboardClipsIndexRouteImport.update({
-  id: '/clips/',
-  path: '/clips/',
+const DashboardAssetsIndexRoute = DashboardAssetsIndexRouteImport.update({
+  id: '/assets/',
+  path: '/assets/',
   getParentRoute: () => DashboardRoute,
 } as any)
 const DemoStartServerFuncsRoute = DemoStartServerFuncsRouteImport.update({
@@ -190,17 +182,6 @@ const DashboardSettingsBillingRoute =
     path: '/settings/billing',
     getParentRoute: () => DashboardRoute,
   } as any)
-const DashboardProjectsProjectIdRoute =
-  DashboardProjectsProjectIdRouteImport.update({
-    id: '/projects/$projectId',
-    path: '/projects/$projectId',
-    getParentRoute: () => DashboardRoute,
-  } as any)
-const DashboardClipsClipIdRoute = DashboardClipsClipIdRouteImport.update({
-  id: '/clips/$clipId',
-  path: '/clips/$clipId',
-  getParentRoute: () => DashboardRoute,
-} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -261,8 +242,6 @@ export interface FileRoutesByFullPath {
   '/editor/$clipId': typeof EditorClipIdRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/dashboard/clips/$clipId': typeof DashboardClipsClipIdRoute
-  '/dashboard/projects/$projectId': typeof DashboardProjectsProjectIdRoute
   '/dashboard/settings/billing': typeof DashboardSettingsBillingRoute
   '/dashboard/settings/profile': typeof DashboardSettingsProfileRoute
   '/dashboard/settings/usage': typeof DashboardSettingsUsageRoute
@@ -273,8 +252,7 @@ export interface FileRoutesByFullPath {
   '/demo/form/simple': typeof DemoFormSimpleRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
-  '/dashboard/clips/': typeof DashboardClipsIndexRoute
-  '/dashboard/projects/': typeof DashboardProjectsIndexRoute
+  '/dashboard/assets/': typeof DashboardAssetsIndexRoute
   '/dashboard/templates/': typeof DashboardTemplatesIndexRoute
   '/dashboard/videos/': typeof DashboardVideosIndexRoute
   '/dashboard/videos/$videoId/clips': typeof DashboardVideosVideoIdClipsRoute
@@ -300,8 +278,6 @@ export interface FileRoutesByTo {
   '/editor/$clipId': typeof EditorClipIdRoute
   '/dashboard': typeof DashboardIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/dashboard/clips/$clipId': typeof DashboardClipsClipIdRoute
-  '/dashboard/projects/$projectId': typeof DashboardProjectsProjectIdRoute
   '/dashboard/settings/billing': typeof DashboardSettingsBillingRoute
   '/dashboard/settings/profile': typeof DashboardSettingsProfileRoute
   '/dashboard/settings/usage': typeof DashboardSettingsUsageRoute
@@ -312,8 +288,7 @@ export interface FileRoutesByTo {
   '/demo/form/simple': typeof DemoFormSimpleRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
-  '/dashboard/clips': typeof DashboardClipsIndexRoute
-  '/dashboard/projects': typeof DashboardProjectsIndexRoute
+  '/dashboard/assets': typeof DashboardAssetsIndexRoute
   '/dashboard/templates': typeof DashboardTemplatesIndexRoute
   '/dashboard/videos': typeof DashboardVideosIndexRoute
   '/dashboard/videos/$videoId/clips': typeof DashboardVideosVideoIdClipsRoute
@@ -341,8 +316,6 @@ export interface FileRoutesById {
   '/editor/$clipId': typeof EditorClipIdRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/dashboard/clips/$clipId': typeof DashboardClipsClipIdRoute
-  '/dashboard/projects/$projectId': typeof DashboardProjectsProjectIdRoute
   '/dashboard/settings/billing': typeof DashboardSettingsBillingRoute
   '/dashboard/settings/profile': typeof DashboardSettingsProfileRoute
   '/dashboard/settings/usage': typeof DashboardSettingsUsageRoute
@@ -353,8 +326,7 @@ export interface FileRoutesById {
   '/demo/form/simple': typeof DemoFormSimpleRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
-  '/dashboard/clips/': typeof DashboardClipsIndexRoute
-  '/dashboard/projects/': typeof DashboardProjectsIndexRoute
+  '/dashboard/assets/': typeof DashboardAssetsIndexRoute
   '/dashboard/templates/': typeof DashboardTemplatesIndexRoute
   '/dashboard/videos/': typeof DashboardVideosIndexRoute
   '/dashboard/videos/$videoId/clips': typeof DashboardVideosVideoIdClipsRoute
@@ -383,8 +355,6 @@ export interface FileRouteTypes {
     | '/editor/$clipId'
     | '/dashboard/'
     | '/api/auth/$'
-    | '/dashboard/clips/$clipId'
-    | '/dashboard/projects/$projectId'
     | '/dashboard/settings/billing'
     | '/dashboard/settings/profile'
     | '/dashboard/settings/usage'
@@ -395,8 +365,7 @@ export interface FileRouteTypes {
     | '/demo/form/simple'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
-    | '/dashboard/clips/'
-    | '/dashboard/projects/'
+    | '/dashboard/assets/'
     | '/dashboard/templates/'
     | '/dashboard/videos/'
     | '/dashboard/videos/$videoId/clips'
@@ -422,8 +391,6 @@ export interface FileRouteTypes {
     | '/editor/$clipId'
     | '/dashboard'
     | '/api/auth/$'
-    | '/dashboard/clips/$clipId'
-    | '/dashboard/projects/$projectId'
     | '/dashboard/settings/billing'
     | '/dashboard/settings/profile'
     | '/dashboard/settings/usage'
@@ -434,8 +401,7 @@ export interface FileRouteTypes {
     | '/demo/form/simple'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
-    | '/dashboard/clips'
-    | '/dashboard/projects'
+    | '/dashboard/assets'
     | '/dashboard/templates'
     | '/dashboard/videos'
     | '/dashboard/videos/$videoId/clips'
@@ -462,8 +428,6 @@ export interface FileRouteTypes {
     | '/editor/$clipId'
     | '/dashboard/'
     | '/api/auth/$'
-    | '/dashboard/clips/$clipId'
-    | '/dashboard/projects/$projectId'
     | '/dashboard/settings/billing'
     | '/dashboard/settings/profile'
     | '/dashboard/settings/usage'
@@ -474,8 +438,7 @@ export interface FileRouteTypes {
     | '/demo/form/simple'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
-    | '/dashboard/clips/'
-    | '/dashboard/projects/'
+    | '/dashboard/assets/'
     | '/dashboard/templates/'
     | '/dashboard/videos/'
     | '/dashboard/videos/$videoId/clips'
@@ -627,18 +590,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardTemplatesIndexRouteImport
       parentRoute: typeof DashboardRoute
     }
-    '/dashboard/projects/': {
-      id: '/dashboard/projects/'
-      path: '/projects'
-      fullPath: '/dashboard/projects/'
-      preLoaderRoute: typeof DashboardProjectsIndexRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/clips/': {
-      id: '/dashboard/clips/'
-      path: '/clips'
-      fullPath: '/dashboard/clips/'
-      preLoaderRoute: typeof DashboardClipsIndexRouteImport
+    '/dashboard/assets/': {
+      id: '/dashboard/assets/'
+      path: '/assets'
+      fullPath: '/dashboard/assets/'
+      preLoaderRoute: typeof DashboardAssetsIndexRouteImport
       parentRoute: typeof DashboardRoute
     }
     '/demo/start/server-funcs': {
@@ -711,20 +667,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardSettingsBillingRouteImport
       parentRoute: typeof DashboardRoute
     }
-    '/dashboard/projects/$projectId': {
-      id: '/dashboard/projects/$projectId'
-      path: '/projects/$projectId'
-      fullPath: '/dashboard/projects/$projectId'
-      preLoaderRoute: typeof DashboardProjectsProjectIdRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/clips/$clipId': {
-      id: '/dashboard/clips/$clipId'
-      path: '/clips/$clipId'
-      fullPath: '/dashboard/clips/$clipId'
-      preLoaderRoute: typeof DashboardClipsClipIdRouteImport
-      parentRoute: typeof DashboardRoute
-    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -786,14 +728,11 @@ declare module '@tanstack/react-router' {
 
 interface DashboardRouteChildren {
   DashboardIndexRoute: typeof DashboardIndexRoute
-  DashboardClipsClipIdRoute: typeof DashboardClipsClipIdRoute
-  DashboardProjectsProjectIdRoute: typeof DashboardProjectsProjectIdRoute
   DashboardSettingsBillingRoute: typeof DashboardSettingsBillingRoute
   DashboardSettingsProfileRoute: typeof DashboardSettingsProfileRoute
   DashboardSettingsUsageRoute: typeof DashboardSettingsUsageRoute
   DashboardVideosUploadRoute: typeof DashboardVideosUploadRoute
-  DashboardClipsIndexRoute: typeof DashboardClipsIndexRoute
-  DashboardProjectsIndexRoute: typeof DashboardProjectsIndexRoute
+  DashboardAssetsIndexRoute: typeof DashboardAssetsIndexRoute
   DashboardTemplatesIndexRoute: typeof DashboardTemplatesIndexRoute
   DashboardVideosIndexRoute: typeof DashboardVideosIndexRoute
   DashboardVideosVideoIdClipsRoute: typeof DashboardVideosVideoIdClipsRoute
@@ -803,14 +742,11 @@ interface DashboardRouteChildren {
 
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardIndexRoute: DashboardIndexRoute,
-  DashboardClipsClipIdRoute: DashboardClipsClipIdRoute,
-  DashboardProjectsProjectIdRoute: DashboardProjectsProjectIdRoute,
   DashboardSettingsBillingRoute: DashboardSettingsBillingRoute,
   DashboardSettingsProfileRoute: DashboardSettingsProfileRoute,
   DashboardSettingsUsageRoute: DashboardSettingsUsageRoute,
   DashboardVideosUploadRoute: DashboardVideosUploadRoute,
-  DashboardClipsIndexRoute: DashboardClipsIndexRoute,
-  DashboardProjectsIndexRoute: DashboardProjectsIndexRoute,
+  DashboardAssetsIndexRoute: DashboardAssetsIndexRoute,
   DashboardTemplatesIndexRoute: DashboardTemplatesIndexRoute,
   DashboardVideosIndexRoute: DashboardVideosIndexRoute,
   DashboardVideosVideoIdClipsRoute: DashboardVideosVideoIdClipsRoute,

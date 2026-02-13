@@ -37,7 +37,7 @@ export function ClipCard({ clip, className }: ClipCardProps) {
 
   return (
     <Link
-      to="/dashboard/clips/$clipId"
+      to="/editor/$clipId"
       params={{ clipId: clip.id }}
       className={cn(
         'block rounded-xl border border-[var(--app-border)] bg-[var(--app-bg-raised)] overflow-hidden shadow-card transition-[var(--motion-duration-fast)] hover:border-[var(--app-border-strong)] hover:shadow-lg focus-visible:outline focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]',

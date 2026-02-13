@@ -2,6 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Video, Upload } from 'lucide-react'
 import { listVideos } from '../../../lib/api/videos'
+import { useActiveProject } from '../../../stores/useActiveProject'
 import { Skeleton } from '../../../components/ui/skeleton'
 import { EmptyState } from '../../../components/ui/empty-state'
 import { ErrorState } from '../../../components/ui/error-state'
@@ -28,9 +29,15 @@ function statusVariant(
 }
 
 function VideosListPage() {
+  const { activeProjectId } = useActiveProject()
+
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['videos'],
-    queryFn: () => listVideos({ per_page: 50 }),
+    queryKey: ['videos', { project_id: activeProjectId }],
+    queryFn: () =>
+      listVideos({
+        per_page: 50,
+        ...(activeProjectId ? { project_id: activeProjectId } : {}),
+      }),
     refetchInterval: (query) => {
       const videos = (query.state.data as { data?: { videos?: { status: string }[] } })?.data?.videos ?? []
       const hasProcessing = videos.some((v) => v.status === 'processing' || v.status === 'uploading')
@@ -81,10 +88,15 @@ function VideosListPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-h1 text-[var(--app-fg)]">Videos</h1>
-          <p className="text-caption mt-1">Your uploaded videos.</p>
+          <p className="text-caption mt-1">
+            {activeProjectId
+              ? 'Videos in this workspace.'
+              : 'All your uploaded videos across projects.'}
+          </p>
         </div>
         <Link
           to="/dashboard/videos/upload"
+          search={activeProjectId ? { projectId: activeProjectId } : {}}
           className="inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-[#0a0a0b] shadow-card transition-[var(--motion-duration-fast)] hover:bg-[var(--app-accent-hover)] focus-visible:outline focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-bg)]"
         >
           <Upload size={18} />
@@ -100,6 +112,7 @@ function VideosListPage() {
           action={
             <Link
               to="/dashboard/videos/upload"
+              search={activeProjectId ? { projectId: activeProjectId } : {}}
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--app-accent)] px-4 py-2.5 text-sm font-semibold text-[#0a0a0b] hover:bg-[var(--app-accent-hover)] focus-visible:outline focus-visible:ring-2 focus-visible:ring-[var(--app-accent)]"
             >
               <Upload size={18} />

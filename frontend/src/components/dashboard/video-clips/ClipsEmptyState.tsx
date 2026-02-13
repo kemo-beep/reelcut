@@ -31,14 +31,25 @@ export function ClipsEmptyState({
         >
           AI suggest clips
         </Button>
-        <Link to="/dashboard/clips" search={videoId != null ? { videoId } : undefined}>
-          <Button
-            size="sm"
-            className="bg-[var(--app-accent)] text-[#0a0a0b] hover:bg-[var(--app-accent-hover)]"
-          >
-            Create clip
-          </Button>
-        </Link>
+        {videoId ? (
+          <Link to="/dashboard/videos/$videoId/clips" params={{ videoId }}>
+            <Button
+              size="sm"
+              className="bg-[var(--app-accent)] text-[#0a0a0b] hover:bg-[var(--app-accent-hover)]"
+            >
+              Create clip
+            </Button>
+          </Link>
+        ) : (
+          <Link to="/dashboard/videos">
+            <Button
+              size="sm"
+              className="bg-[var(--app-accent)] text-[#0a0a0b] hover:bg-[var(--app-accent-hover)]"
+            >
+              Create clip
+            </Button>
+          </Link>
+        )}
       </div>
     </div>
   )

@@ -135,8 +135,8 @@ function EditorPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-8">
         <ErrorState message="Clip not found." onRetry={() => queryClient.invalidateQueries({ queryKey: ['clip', clipId] })} />
-        <Link to="/dashboard/clips" className="mt-4">
-          <Button variant="outline">Back to Clips</Button>
+        <Link to="/dashboard/videos" className="mt-4">
+          <Button variant="outline">Back to Videos</Button>
         </Link>
       </div>
     )
@@ -169,11 +169,11 @@ function EditorPage() {
     <div className="flex flex-col min-h-screen bg-[var(--app-bg)]">
       <header className="flex items-center justify-between border-b border-[var(--app-border)] bg-[var(--app-bg-raised)] px-4 py-3 shrink-0">
         <Link
-          to="/dashboard/clips/$clipId"
-          params={{ clipId }}
+          to="/dashboard/videos/$videoId"
+          params={{ videoId: videoId ?? '' }}
           className="text-sm text-[var(--app-fg-muted)] hover:text-[var(--app-accent)]"
         >
-          ← Back to clip
+          ← Back to video
         </Link>
         <h1 className="font-semibold text-[var(--app-fg)] truncate max-w-md">{clip.name}</h1>
         <div className="w-24" />

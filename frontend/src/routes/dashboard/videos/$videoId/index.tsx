@@ -150,7 +150,7 @@ function VideoDetailPage() {
       }
       const { transcription: t } = await getTranscriptionByVideoId(videoId)
       if (!t || t.status !== 'completed') throw new Error('Transcription did not complete in time')
-      await analyzeVideo(videoId).catch(() => {})
+      await analyzeVideo(videoId).catch(() => { })
       const { suggestions } = await suggestClips(videoId)
       return { suggestions }
     },
@@ -295,13 +295,6 @@ function VideoDetailPage() {
               className="inline-flex items-center justify-center rounded-lg border border-[var(--app-border)] bg-[var(--app-bg-raised)] px-4 py-2 text-sm font-medium text-[var(--app-fg)] hover:bg-[var(--app-bg-overlay)]"
             >
               Clips from this video
-            </Link>
-            <Link
-              to="/dashboard/clips"
-              search={{ videoId: video.id }}
-              className="inline-flex items-center justify-center rounded-lg border border-[var(--app-border)] bg-[var(--app-bg-raised)] px-4 py-2 text-sm font-medium text-[var(--app-fg)] hover:bg-[var(--app-bg-overlay)]"
-            >
-              View all clips
             </Link>
           </div>
         </div>

@@ -3,26 +3,28 @@ import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useWebSocket } from '../../hooks/useWebSocket'
 import { useAuthHasHydrated, hasStoredAuth } from '../../stores/authStore'
+import { ProjectSwitcher } from '../dashboard/ProjectSwitcher'
 import {
   LayoutDashboard,
-  FolderOpen,
   Video,
-  Scissors,
+  Image,
   LayoutTemplate,
   Settings,
   CreditCard,
   BarChart3,
 } from 'lucide-react'
 
-const nav = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/dashboard/projects', label: 'Projects', icon: FolderOpen },
-  { to: '/dashboard/videos', label: 'Videos', icon: Video },
-  { to: '/dashboard/clips', label: 'Clips', icon: Scissors },
-  { to: '/dashboard/templates', label: 'Templates', icon: LayoutTemplate },
-  { to: '/dashboard/settings/profile', label: 'Profile', icon: Settings },
-  { to: '/dashboard/settings/billing', label: 'Billing', icon: CreditCard },
-  { to: '/dashboard/settings/usage', label: 'Usage', icon: BarChart3 },
+const workspaceNav = [
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, exact: true },
+  { to: '/dashboard/videos', label: 'Videos', icon: Video, exact: false },
+  { to: '/dashboard/assets', label: 'Assets', icon: Image, exact: false },
+  { to: '/dashboard/templates', label: 'Templates', icon: LayoutTemplate, exact: false },
+]
+
+const settingsNav = [
+  { to: '/dashboard/settings/profile', label: 'Profile', icon: Settings, exact: false },
+  { to: '/dashboard/settings/billing', label: 'Billing', icon: CreditCard, exact: false },
+  { to: '/dashboard/settings/usage', label: 'Usage', icon: BarChart3, exact: false },
 ]
 
 export default function DashboardLayout() {
@@ -55,27 +57,60 @@ export default function DashboardLayout() {
       }
     },
   })
+
   return (
     <div className="flex min-h-screen bg-[var(--app-bg)]">
       <aside className="flex w-64 flex-shrink-0 flex-col border-r border-[var(--app-border)] bg-[var(--app-bg-raised)] shadow-card">
-        <nav className="space-y-0.5 p-3">
-          {nav.map(({ to, label, icon: Icon }) => (
-            <Link
-              key={to}
-              to={to}
-              activeOptions={{ exact: to === '/dashboard' }}
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[var(--app-fg-muted)] transition-[var(--motion-duration-fast)] hover:bg-[var(--app-bg-overlay)] hover:text-[var(--app-fg)] focus-visible:outline focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-bg-raised)]"
-              activeProps={{
-                className:
-                  'border-l-2 border-[var(--app-accent)] bg-[var(--app-accent-muted)] text-[var(--app-accent)] hover:bg-[var(--app-accent-muted)] hover:text-[var(--app-accent)] -ml-px pl-[13px]',
-              }}
-            >
-              <Icon size={20} aria-hidden />
-              <span className="font-medium">{label}</span>
-            </Link>
-          ))}
+        {/* Project switcher */}
+        <div className="border-b border-[var(--app-border)] p-3">
+          <ProjectSwitcher />
+        </div>
+
+        {/* Workspace navigation */}
+        <nav className="flex-1 space-y-4 p-3">
+          <div className="space-y-0.5">
+            <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-[var(--app-fg-subtle)]">
+              Workspace
+            </p>
+            {workspaceNav.map(({ to, label, icon: Icon, exact }) => (
+              <Link
+                key={to}
+                to={to}
+                activeOptions={{ exact }}
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[var(--app-fg-muted)] transition-[var(--motion-duration-fast)] hover:bg-[var(--app-bg-overlay)] hover:text-[var(--app-fg)] focus-visible:outline focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-bg-raised)]"
+                activeProps={{
+                  className:
+                    'border-l-2 border-[var(--app-accent)] bg-[var(--app-accent-muted)] text-[var(--app-accent)] hover:bg-[var(--app-accent-muted)] hover:text-[var(--app-accent)] -ml-px pl-[13px]',
+                }}
+              >
+                <Icon size={20} aria-hidden />
+                <span className="font-medium">{label}</span>
+              </Link>
+            ))}
+          </div>
+
+          <div className="space-y-0.5">
+            <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-[var(--app-fg-subtle)]">
+              Settings
+            </p>
+            {settingsNav.map(({ to, label, icon: Icon }) => (
+              <Link
+                key={to}
+                to={to}
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[var(--app-fg-muted)] transition-[var(--motion-duration-fast)] hover:bg-[var(--app-bg-overlay)] hover:text-[var(--app-fg)] focus-visible:outline focus-visible:ring-2 focus-visible:ring-[var(--app-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-bg-raised)]"
+                activeProps={{
+                  className:
+                    'border-l-2 border-[var(--app-accent)] bg-[var(--app-accent-muted)] text-[var(--app-accent)] hover:bg-[var(--app-accent-muted)] hover:text-[var(--app-accent)] -ml-px pl-[13px]',
+                }}
+              >
+                <Icon size={20} aria-hidden />
+                <span className="font-medium">{label}</span>
+              </Link>
+            ))}
+          </div>
         </nav>
       </aside>
+
       <main className="min-w-0 flex-1 overflow-auto">
         <div className="mx-auto max-w-6xl px-6 py-8">
           <Outlet />

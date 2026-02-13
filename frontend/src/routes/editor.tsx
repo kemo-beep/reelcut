@@ -5,7 +5,7 @@ import { shouldRedirectToLogin, useAuthHasHydrated, hasStoredAuth } from '../sto
 export const Route = createFileRoute('/editor')({
   beforeLoad: () => {
     if (shouldRedirectToLogin()) {
-      throw redirect({ to: '/auth/login', search: { redirectTo: '/dashboard/clips' } })
+      throw redirect({ to: '/auth/login', search: { redirectTo: '/dashboard' } })
     }
   },
   component: EditorLayout,
@@ -19,7 +19,7 @@ function EditorLayout() {
     if (typeof window === 'undefined') return
     if (!hasHydrated) return
     if (!hasStoredAuth()) {
-      navigate({ to: '/auth/login', search: { redirectTo: '/dashboard/clips' } })
+      navigate({ to: '/auth/login', search: { redirectTo: '/dashboard' } })
     }
   }, [hasHydrated, navigate])
 

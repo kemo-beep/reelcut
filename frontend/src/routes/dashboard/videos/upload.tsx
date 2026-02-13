@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { listProjects } from '../../../lib/api/projects'
 import { useQuery } from '@tanstack/react-query'
+import { useActiveProject } from '../../../stores/useActiveProject'
 import { Label } from '../../../components/ui/label'
 import { VideoUploader } from '../../../components/video/VideoUploader'
 import { toast } from 'sonner'
@@ -18,7 +19,17 @@ function VideoUploadPage() {
   const navigate = useNavigate()
   const search = useSearch({ from: '/dashboard/videos/upload' })
   const queryClient = useQueryClient()
-  const [projectId, setProjectId] = useState(search.projectId ?? '')
+  const { activeProjectId } = useActiveProject()
+
+  // Prefer search param, fall back to active project
+  const [projectId, setProjectId] = useState(search.projectId ?? activeProjectId ?? '')
+
+  // Sync when active project changes and no explicit search param
+  useEffect(() => {
+    if (!search.projectId && activeProjectId && !projectId) {
+      setProjectId(activeProjectId)
+    }
+  }, [activeProjectId, search.projectId, projectId])
 
   const { data: projectsData } = useQuery({
     queryKey: ['projects'],
@@ -58,7 +69,7 @@ function VideoUploadPage() {
               toast.success('Video uploaded')
               setTimeout(() => navigate({ to: '/dashboard/videos' }), 1500)
             }}
-            onError={() => {}}
+            onError={() => { }}
           />
         ) : (
           <p className="text-caption text-[var(--app-fg-muted)]">Select a project to upload a video.</p>
